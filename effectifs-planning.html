@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Effectifs — Planning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#faf9f5;
+    --surface:#ffffff;
+    --surface-sunk:#f2f0ea;
+    --line:#e3e0d6;
+    --line-strong:#cac6b8;
+    --ink:#1c1b18;
+    --ink-soft:#66635a;
+    --ink-faint:#98948a;
+    --ink-teal:#0f5c4c;
+    --ink-teal-soft:#e2ede9;
+    --concert:#2c4a7c;
+    --concert-soft:#e6ecf5;
+    --ceremonie:#7a2e3d;
+    --ceremonie-soft:#f5e6e9;
+    --amber:#a5680f;
+    --amber-soft:#faf0dd;
+    --red:#a5322a;
+    --red-soft:#f7e6e4;
+    --p-pascal:#3b6e8f; --p-pascal-soft:#e3ecf2;
+    --p-anne:#7a4fa0; --p-anne-soft:#efe6f5;
+    --p-stephane:#b5651d; --p-stephane-soft:#f6e9d9;
+    --p-christophe:#4f7942; --p-christophe-soft:#e8f0e3;
+    --p-marin:#a8325e; --p-marin-soft:#f5e3ea;
+    --radius:10px;
+    --radius-lg:16px;
+    --shadow-card:0 1px 2px rgba(28,27,24,0.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#171613;
+      --surface:#201f1b;
+      --surface-sunk:#2a2925;
+      --line:#3a382f;
+      --line-strong:#4a473c;
+      --ink:#f2f0e8;
+      --ink-soft:#b3b0a4;
+      --ink-faint:#7d7a6f;
+      --ink-teal:#4fb89b;
+      --ink-teal-soft:#1c332c;
+      --concert:#8badea;
+      --concert-soft:#22314d;
+      --ceremonie:#e69bab;
+      --ceremonie-soft:#3a2229;
+      --amber:#e0aa4e;
+      --amber-soft:#3a2f16;
+      --red:#e08579;
+      --red-soft:#3d2320;
+      --p-pascal:#8fc2e6; --p-pascal-soft:#1f2e38;
+      --p-anne:#d0a8ea; --p-anne-soft:#2c2333;
+      --p-stephane:#e8b374; --p-stephane-soft:#332619;
+      --p-christophe:#a3d18f; --p-christophe-soft:#26301f;
+      --p-marin:#e896b3; --p-marin-soft:#331f27;
+      color-scheme: dark;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px;}
+
+  /* header */
+  .topbar{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand h1{font-family:'Fraunces',serif;font-weight:500;font-size:26px;margin:0;letter-spacing:-0.01em;}
+  .brand .tagline{font-size:12.5px;color:var(--ink-soft);font-style:italic;font-family:'Fraunces',serif;}
+  .season{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);border:0.5px solid var(--line-strong);padding:4px 9px;border-radius:20px;white-space:nowrap;}
+
+  .tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--line);margin-bottom:22px;}
+  .tab-btn{
+    appearance:none;background:none;border:none;cursor:pointer;
+    font-family:'Inter',sans-serif;font-size:13.5px;font-weight:500;color:var(--ink-soft);
+    padding:9px 4px;margin-right:22px;border-bottom:2px solid transparent;
+    transition:color .15s;
+  }
+  .tab-btn:hover{color:var(--ink);}
+  .tab-btn.active{color:var(--ink-teal);border-bottom-color:var(--ink-teal);}
+
+  /* generic */
+  .card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);}
+  .btn{
+    appearance:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;
+    border:0.5px solid var(--line-strong);background:var(--surface);color:var(--ink);
+    padding:8px 14px;border-radius:8px;transition:background .12s, transform .08s;
+  }
+  .btn:hover{background:var(--surface-sunk);}
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--ink-teal);color:#fff;border-color:var(--ink-teal);}
+  .btn-primary:hover{background:var(--ink-teal);opacity:0.92;}
+  .btn-ghost{border-color:transparent;background:none;}
+  .btn-ghost:hover{background:var(--surface-sunk);}
+  .btn-danger{color:var(--red);}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+
+  select,input[type=text],input[type=date],input[type=number]{
+    font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);
+    background:var(--surface);border:0.5px solid var(--line-strong);border-radius:8px;
+    padding:8px 10px;width:100%;
+  }
+  input[type=number]{font-family:'IBM Plex Mono',monospace;}
+  label.field-label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-faint);font-weight:500;display:block;margin-bottom:5px;}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;letter-spacing:0.02em;}
+  .badge-concert{background:var(--concert-soft);color:var(--concert);}
+  .badge-ceremonie{background:var(--ceremonie-soft);color:var(--ceremonie);}
+
+  /* planning */
+  .month-group{margin-bottom:26px;}
+  .month-title{font-family:'Fraunces',serif;font-size:16px;font-weight:500;color:var(--ink);margin:0 0 10px 2px;text-transform:capitalize;}
+  .event-row{
+    display:flex;align-items:flex-start;gap:14px;padding:13px 16px;border-bottom:0.5px solid var(--line);cursor:pointer;
+  }
+  .event-row:last-child{border-bottom:none;}
+  .event-row:hover{background:var(--surface-sunk);}
+  .ev-date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);width:70px;flex-shrink:0;padding-top:2px;}
+  .ev-main{flex:1;min-width:0;}
+  .ev-label{font-size:14px;font-weight:500;margin-bottom:6px;}
+  .ev-people{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 8px;border-radius:6px;
+    border:0.5px solid var(--line);color:var(--ink-soft);background:var(--surface-sunk);
+  }
+  .chip .n{font-family:'IBM Plex Mono',monospace;font-weight:500;}
+  .chip.assigned{background:var(--ink-teal-soft);color:var(--ink-teal);border-color:transparent;}
+  .chip.st-oui{color:var(--ink-teal);}
+  .chip.st-bof{color:var(--amber);}
+  .chip.st-non{color:var(--ink-faint);text-decoration:line-through;}
+  .chip.st-incertain{color:var(--ink-faint);border-style:dashed;}
+  .empty{color:var(--ink-faint);font-size:13px;padding:30px;text-align:center;}
+
+  /* form */
+  .form-card{padding:20px 22px;margin-bottom:20px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;}
+  .person-row{
+    display:grid;grid-template-columns:110px 1fr 90px;gap:10px;align-items:center;
+    padding:9px 0;border-top:0.5px solid var(--line);
+  }
+  .person-row:first-of-type{border-top:none;}
+  .person-name{font-weight:500;font-size:13.5px;}
+  .dispo-toggle{display:flex;gap:4px;}
+  .dispo-opt{
+    flex:1;text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:pointer;
+    border:0.5px solid var(--line-strong);color:var(--ink-soft);user-select:none;
+  }
+  .dispo-opt.sel-oui{background:var(--ink-teal);color:#fff;border-color:var(--ink-teal);}
+  .dispo-opt.sel-bof{background:var(--amber);color:#fff;border-color:var(--amber);}
+  .dispo-opt.sel-non{background:var(--surface-sunk);color:var(--ink-faint);text-decoration:line-through;}
+  .dispo-opt.sel-incertain{background:var(--surface-sunk);color:var(--ink-faint);border-style:dashed;}
+  .person-extra{grid-column:1 / -1;display:flex;gap:6px;padding-left:110px;margin-top:-2px;}
+  .mini-opt{
+    font-size:10px;font-weight:500;padding:2px 8px;border-radius:5px;cursor:pointer;user-select:none;
+    border:0.5px solid var(--line-strong);color:var(--ink-faint);background:var(--surface);
+  }
+  .mini-opt.sel{background:var(--ink-teal);color:#fff;border-color:var(--ink-teal);}
+  .mini-opt.meal-opt.sel{background:var(--amber);border-color:var(--amber);}
+  @media (max-width:600px){ .person-extra{padding-left:0;} }
+  .form-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:16px;border-top:0.5px solid var(--line);}
+  .hint{font-size:12px;color:var(--ink-faint);}
+
+  /* equilibrage */
+  .balance-card{padding:18px 20px;margin-bottom:12px;}
+  .balance-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .balance-name{font-family:'Fraunces',serif;font-size:16px;font-weight:500;}
+  .balance-delta{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;}
+  .beam-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .beam-label{width:80px;font-size:11.5px;color:var(--ink-soft);flex-shrink:0;}
+  .beam-track{position:relative;flex:1;height:8px;background:var(--surface-sunk);border-radius:4px;overflow:hidden;}
+  .beam-mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line-strong);}
+  .beam-fill{position:absolute;top:0;bottom:0;border-radius:4px;}
+  .beam-val{width:56px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);flex-shrink:0;}
+  .legend-row{display:flex;gap:18px;font-size:12px;color:var(--ink-soft);margin-bottom:18px;flex-wrap:wrap;}
+  .legend-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px;}
+
+  .section-note{font-size:12px;color:var(--ink-faint);margin:6px 2px 20px;line-height:1.6;}
+  .month-select-wrap{margin-bottom:16px;}
+  select#monthFilter{width:auto;min-width:160px;}
+
+  /* calendrier */
+  .cal-card{padding:14px 14px 18px;}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;}
+  .cal-weekdays div{text-align:center;font-size:10.5px;color:var(--ink-faint);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-cell{min-height:64px;min-width:0;overflow:hidden;border:0.5px solid var(--line);border-radius:8px;padding:5px 5px 4px;cursor:pointer;background:var(--surface);}
+  .cal-cell:hover{background:var(--surface-sunk);border-color:var(--line-strong);}
+  .cal-cell.cal-empty{border:none;cursor:default;background:transparent;}
+  .cal-cell.cal-empty:hover{background:transparent;}
+  .cal-cell.cal-today{border-color:var(--ink-teal);}
+  .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-bottom:3px;}
+  .cal-today .cal-daynum{color:var(--ink-teal);font-weight:500;}
+  .cal-chips{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .cal-chip{
+    font-size:10.5px;padding:2px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    border-left:2px solid transparent;min-width:0;
+  }
+  .cal-chip-concert{background:var(--concert-soft);color:var(--concert);border-left-color:var(--concert);}
+  .cal-chip-ceremonie{background:var(--ceremonie-soft);color:var(--ceremonie);border-left-color:var(--ceremonie);}
+  @media (max-width:700px){
+    .cal-cell{min-height:46px;}
+    .cal-chip{font-size:9.5px;}
+  }
+
+  /* navigation mois (Nouveau service) */
+  .month-nav{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  .month-nav-label{font-family:'Fraunces',serif;font-size:18px;font-weight:500;text-transform:capitalize;min-width:160px;text-align:center;}
+  .section-label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-faint);font-weight:500;margin:0 2px 8px;}
+  .mini-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:0.5px solid var(--line);cursor:pointer;}
+  .mini-row:last-child{border-bottom:none;}
+  .mini-row:hover{background:var(--surface-sunk);}
+  .mini-label{flex:1;font-size:13.5px;}
+
+  /* bannière de statut */
+  .status-banner{
+    font-size:12.5px;padding:10px 14px;border-radius:8px;margin-bottom:18px;line-height:1.5;
+  }
+  .status-banner code{font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:4px;}
+  .status-warn{background:var(--amber-soft);color:var(--amber);}
+  .status-error{background:var(--red-soft);color:var(--red);}
+
+  /* onglet Effectifs : dispo en lecture seule */
+  .person-row-full{grid-template-columns:110px 74px 90px;}
+  .dispo-readonly{font-size:11.5px;text-align:center;padding:6px 0;border-radius:6px;}
+  .dispo-readonly.st-oui{color:var(--ink-teal);background:var(--ink-teal-soft);}
+  .dispo-readonly.st-bof{color:var(--amber);background:var(--amber-soft);}
+  .dispo-readonly.st-non{color:var(--ink-faint);background:var(--surface-sunk);text-decoration:line-through;}
+  .dispo-readonly.st-incertain{color:var(--ink-faint);background:var(--surface-sunk);}
+  .cal-cell.cal-noadd{cursor:default;}
+  .cal-cell.cal-noadd:hover{background:var(--surface);border-color:var(--line);}
+
+  /* onglet Effectifs : liste en lecture seule */
+  .eff-row{
+    display:flex;align-items:flex-start;gap:14px;padding:13px 16px;border-bottom:0.5px solid var(--line);
+  }
+  .eff-row:last-child{border-bottom:none;}
+  .eff-date{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);width:70px;flex-shrink:0;padding-top:3px;}
+  .eff-main{flex:1;min-width:0;}
+  .eff-label{font-size:14px;font-weight:500;margin-bottom:7px;}
+  .eff-people{display:flex;flex-wrap:wrap;gap:6px;}
+  .p-chip{
+    display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;padding:3px 9px;border-radius:20px;
+  }
+  .p-chip .h{font-family:'IBM Plex Mono',monospace;font-weight:500;opacity:0.85;}
+  .p-chip-pascal{color:var(--p-pascal);background:var(--p-pascal-soft);}
+  .p-chip-anne{color:var(--p-anne);background:var(--p-anne-soft);}
+  .p-chip-stephane{color:var(--p-stephane);background:var(--p-stephane-soft);}
+  .p-chip-christophe{color:var(--p-christophe);background:var(--p-christophe-soft);}
+  .p-chip-marin{color:var(--p-marin);background:var(--p-marin-soft);}
+  .p-dot{display:inline-block;width:7px;height:7px;border-radius:50%;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script id="seed-data" type="application/json">[{"id": "ev1", "date": "2026-01-26", "label": "Quatuor Cormeilles", "category": "concert", "dispo": {}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev2", "date": "2026-01-27", "label": "Immersion EN", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "non", "Marin": "incertain"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Stéphane": 6.0, "Marin": 6.0}}, {"id": "ev3", "date": "2026-01-30", "label": "Cérémonie Deuil La Barre", "category": "ceremonie", "dispo": {"Pascal": "bof", "Anne": "non", "Stéphane": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {"Stéphane": 6.0, "Marin": 6.0}}, {"id": "ev4", "date": "2026-02-03", "label": "Immersion EN", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Stéphane": 6.0, "Marin": 6.0}}, {"id": "ev5", "date": "2026-02-05", "label": "cérémonie Bordeaux", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "non", "Christophe": "oui"}, "hours": {"Pascal": 42.0, "Anne": 42.0, "Christophe": 42.0}}, {"id": "ev6", "date": "2026-02-06", "label": "Cérémonie Beauvau", "category": "ceremonie", "dispo": {"Pascal": "bof", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "non"}, "hours": {"Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev7", "date": "2026-02-09", "label": "Quatuor", "category": "concert", "dispo": {}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev8", "date": "2026-02-10", "label": "répé Quatuor", "category": "concert", "dispo": {}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev9", "date": "2026-02-11", "label": "Cérémonie Sens 11h", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "non", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 12.0, "Christophe": 12.0, "Marin": 12.0}}, {"id": "ev10", "date": "2026-02-16", "label": "Quatuor", "category": "concert", "dispo": {}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev11", "date": "2026-02-17", "label": "Immersion EN", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "non", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev12", "date": "2026-02-19", "label": "Chassieu", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "non", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 36.0, "Christophe": 36.0, "Marin": 36.0}}, {"id": "ev13", "date": "2026-02-20", "label": "Cannes  Ecluses", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui"}, "hours": {"Pascal": 12.0, "Anne": 12.0, "Stéphane": 12.0}}, {"id": "ev14", "date": "2026-03-03", "label": "Cérémonie Dijon", "category": "ceremonie", "dispo": {"Stéphane": "oui", "Christophe": "oui"}, "hours": {"Stéphane": 18.0, "Christophe": 18.0}}, {"id": "ev15", "date": "2026-03-03", "label": "Cérémonie Dijon", "category": "ceremonie", "dispo": {}, "hours": {"Stéphane": 12.0, "Christophe": 12.0}}, {"id": "ev16", "date": "2026-03-04", "label": "Cérémonie Paris", "category": "ceremonie", "dispo": {"Stéphane": "oui", "Christophe": "oui"}, "hours": {"Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev17", "date": "2026-03-13", "label": "Cérémonie funèbre CDG", "category": "ceremonie", "dispo": {}, "hours": {"Pascal": 12.0}}, {"id": "ev18", "date": "2026-03-16", "label": "Quatuor de sax Versailles", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev19", "date": "2026-03-19", "label": "Immersion", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Stéphane": 6.0, "Marin": 6.0}}, {"id": "ev20", "date": "2026-03-19", "label": "Cérémonie Nanterre", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "incertain", "Stéphane": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {"Stéphane": 6.0, "Marin": 6.0}}, {"id": "ev21", "date": "2026-03-23", "label": "Quatuor Argenteuil", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev22", "date": "2026-03-24", "label": "Cérémonie Nancy", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui"}, "hours": {"Stéphane": 30.0, "Marin": 30.0}}, {"id": "ev23", "date": "2026-03-26", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "non", "Christophe": "oui", "Marin": "non"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Christophe": 6.0}}, {"id": "ev24", "date": "2026-03-29", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "non", "Marin": "non"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Stéphane": 6.0}}, {"id": "ev25", "date": "2026-03-31", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "non"}, "hours": {"Anne": 6.0, "Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev26", "date": "2026-04-03", "label": "Cérémonie Funèbre", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "non", "Stéphane": "oui", "Christophe": "oui", "Marin": "non"}, "hours": {"Stéphane": 30.0, "Christophe": 30.0}}, {"id": "ev27", "date": "2026-04-09", "label": "Repe Miss Louise 1T,1B", "category": "concert", "dispo": {}, "hours": {"Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev28", "date": "2026-04-09", "label": "Repe Nyamba 1A. 11h15", "category": "concert", "dispo": {}, "hours": {"Marin": 6.0}}, {"id": "ev29", "date": "2026-04-13", "label": "Repe Miss Louise à Cergy 14h", "category": "concert", "dispo": {}, "hours": {"Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev30", "date": "2026-04-14", "label": "Repe Nyamba à Ste Geneviève des bois", "category": "concert", "dispo": {}, "hours": {"Marin": 6.0}}, {"id": "ev31", "date": "2026-04-16", "label": "Cérémonie Bièvres", "category": "ceremonie", "dispo": {}, "hours": {"Pascal": 6.0, "Anne": 6.0}}, {"id": "ev32", "date": "2026-04-17", "label": "Sortie Promo GPX Nîmes", "category": "ceremonie", "dispo": {"Pascal": "bof"}, "hours": {"Stéphane": 42.0, "Christophe": 42.0, "Marin": 42.0}}, {"id": "ev33", "date": "2026-04-21", "label": "Cérémonie Mont de Marsan", "category": "ceremonie", "dispo": {}, "hours": {"Pascal": 42.0, "Christophe": 42.0}}, {"id": "ev34", "date": "2026-04-24", "label": "Cérémonie Bièvre", "category": "ceremonie", "dispo": {}, "hours": {"Pascal": 6.0, "Marin": 6.0}}, {"id": "ev35", "date": "2026-04-27", "label": "Cérémonie Rambouillet", "category": "ceremonie", "dispo": {}, "hours": {"Anne": 6.0, "Stéphane": 6.0}}, {"id": "ev36", "date": "2026-05-07", "label": "Cérémonie Elancourt", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0}}, {"id": "ev37", "date": "2026-05-07", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "bof", "Anne": "oui", "Stéphane": "bof", "Christophe": "oui", "Marin": "oui"}, "hours": {"Anne": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev38", "date": "2026-05-08", "label": "Cérémonie Neuilly", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev39", "date": "2026-05-08", "label": "Cérémonie Vélizy", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Anne": 6.0}}, {"id": "ev40", "date": "2026-05-12", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "bof", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Anne": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev41", "date": "2026-05-19", "label": "Cérémonie Metz", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Anne": 30.0}}, {"id": "ev42", "date": "2026-05-25", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {}}, {"id": "ev43", "date": "2026-05-30", "label": "Journée portes ouvertes ENSP Quatuor 10h-13h", "category": "concert", "dispo": {"Pascal": "oui", "Stéphane": "oui", "Marin": "non"}, "hours": {"Pascal": 12.0, "Anne": 12.0, "Stéphane": 12.0, "Christophe": 12.0}}, {"id": "ev44", "date": "2026-05-30", "label": "Journée portes ouvertes ENSP cérémonie 13h30", "category": "ceremonie", "dispo": {"Pascal": "oui", "Stéphane": "oui", "Marin": "non"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0}}, {"id": "ev45", "date": "2026-06-02", "label": "Repe concours", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "non"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev46", "date": "2026-06-04", "label": "Repe Concours", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev47", "date": "2026-06-05", "label": "Repe Concours", "category": "concert", "dispo": {"Pascal": "oui"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev48", "date": "2026-06-09", "label": "Concours 9h-12h", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Anne": 6.0, "Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev49", "date": "2026-06-09", "label": "Concert Nyamba", "category": "concert", "dispo": {"Marin": "oui"}, "hours": {"Marin": 6.0}}, {"id": "ev50", "date": "2026-06-10", "label": "Concours 9h - 10h30 / 11h - 12h15 / 13h30 - 16h", "category": "concert", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev51", "date": "2026-06-10", "label": "Epreuve protocolaire", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "bof", "Christophe": "oui", "Marin": "oui"}, "hours": {"Stéphane": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev52", "date": "2026-06-11", "label": "Concert Miss Louise", "category": "concert", "dispo": {"Stéphane": "oui", "Christophe": "oui"}, "hours": {"Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev53", "date": "2026-06-12", "label": "Cérémonie Salvaing / Mantes la Jolie", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "bof"}, "hours": {"Anne": 6.0, "Stéphane": 6.0, "Christophe": 6.0}}, {"id": "ev54", "date": "2026-06-18", "label": "Cérémonie Vélizy", "category": "ceremonie", "dispo": {"Pascal": "incertain", "Anne": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": 6.0, "Anne": 6.0}}, {"id": "ev55", "date": "2026-06-18", "label": "Cérémonie Bois-Colombes", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Christophe": "oui", "Marin": "oui"}, "hours": {"Christophe": 6.0, "Marin": 6.0}}, {"id": "ev56", "date": "2026-06-18", "label": "Repe Marseille", "category": "concert", "dispo": {}, "hours": {"Anne": 6.0, "Christophe": 6.0, "Marin": 6.0}}, {"id": "ev57", "date": "2026-06-20", "label": "flamme", "category": "ceremonie", "dispo": {"Pascal": "non", "Stéphane": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {}}, {"id": "ev58", "date": "2026-06-23", "label": "Réunion Chef de pupitre", "category": "concert", "dispo": {}, "hours": {"Pascal": 6.0}}, {"id": "ev59", "date": "2026-06-25", "label": "Cérémonie Vélizy ?", "category": "ceremonie", "dispo": {"Pascal": "incertain", "Christophe": "incertain", "Marin": "incertain"}, "hours": {}}, {"id": "ev60", "date": "2026-06-26", "label": "Cérémonie Saint-Cyr", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Anne": null, "Stéphane": null, "Christophe": null}}, {"id": "ev61", "date": "2026-06-30", "label": "Perception tablette MCPN", "category": "concert", "dispo": {}, "hours": {"Pascal": 6.0}}, {"id": "ev62", "date": "2026-07-01", "label": "Flamme", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": null, "Anne": null, "Marin": null}}, {"id": "ev63", "date": "2026-07-02", "label": "Satory ?", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "non"}, "hours": {"Anne": null, "Stéphane": null, "Christophe": null}}, {"id": "ev64", "date": "2026-07-03", "label": "Satory ?", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "non", "Christophe": "oui", "Marin": "non"}, "hours": {}}, {"id": "ev65", "date": "2026-07-05", "label": "Cérémonie Simon Bolivar", "category": "ceremonie", "dispo": {"Pascal": "non", "Anne": "non", "Stéphane": "non", "Christophe": "non"}, "hours": {}}, {"id": "ev66", "date": "2026-07-09", "label": "Cérémonie Dijon", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": null, "Stéphane": null, "Marin": null}}, {"id": "ev67", "date": "2026-07-10", "label": "Cérémonie Vélizy 10h30", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "oui", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {"Pascal": null, "Christophe": null, "Marin": null}}, {"id": "ev68", "date": "2026-07-10", "label": "Cérémonie Osny", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "oui", "Christophe": "oui", "Marin": "oui"}, "hours": {}}, {"id": "ev69", "date": "2026-07-13", "label": "cérémonie Osny ???", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "non", "Christophe": "oui", "Marin": "non"}, "hours": {}}, {"id": "ev70", "date": "2026-07-19", "label": "parc de Sceaux ???", "category": "ceremonie", "dispo": {"Pascal": "oui", "Anne": "non", "Stéphane": "oui", "Christophe": "non", "Marin": "oui"}, "hours": {}}]</script>
+<script>
+/* ===== Constantes ===== */
+const PEOPLE = ['Pascal', 'Anne', 'Stéphane', 'Christophe', 'Marin'];
+const PERSON_SLUG = { Pascal: 'pascal', Anne: 'anne', Stéphane: 'stephane', Christophe: 'christophe', Marin: 'marin' };
+const CATEGORIES = { concert: 'Concert', ceremonie: 'Cérémonie' };
+const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const DAYS_FR = ['L','M','M','J','V','S','D'];
+const DISPO_LABELS = { oui: 'Oui', bof: 'Bof', non: 'Non', incertain: '?' };
+const TODAY = new Date();
+const TODAY_ISO = TODAY.toISOString().slice(0,10);
+const NEEDED_OPTIONS = [1,2,3,4,5];
+const HOURS_PER_X = 6;
+
+/* ===== Connexion au Google Sheet partagé ===== */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-E5oydsLmyNIQ22DZ-3VU6dFpcyijbGvwNaanXXsgulCe3lC1GuZDPDSuBsUTsfp6pw/exec';
+
+/* ===== State ===== */
+let state = {
+  events: [],
+  tab: 'effectifs',       // 'effectifs' | 'planning' | 'equilibrage'
+  editingId: null,        // null | 'new' | eventId (Planning uniquement)
+  prefillDate: null,
+  connected: false,
+  syncError: false,
+  monthsAhead: 2, // nombre de mois futurs sans mission encore visibles dans Planning
+};
+
+function isConfigured() {
+  return APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('COLLEZ_ICI');
+}
+
+/* ===== Chargement / sauvegarde via Google Sheet ===== */
+async function loadData() {
+  if (!isConfigured()) {
+    const seedEl = document.getElementById('seed-data');
+    state.events = JSON.parse(seedEl.textContent);
+    state.connected = false;
+    return;
+  }
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
+    const data = await res.json();
+    state.connected = true;
+    if (Array.isArray(data) && data.length) {
+      state.events = data;
+      return;
+    }
+  } catch (e) {
+    console.error('Erreur de chargement', e);
+    state.connected = false;
+  }
+  const seedEl = document.getElementById('seed-data');
+  state.events = JSON.parse(seedEl.textContent);
+  if (state.connected) await persist();
+}
+
+async function persist() {
+  if (!isConfigured()) return;
+  try {
+    await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(state.events) });
+    state.connected = true;
+    state.syncError = false;
+  } catch (e) {
+    console.error('Erreur de sauvegarde', e);
+    state.syncError = true;
+  }
+}
+
+/* ===== Migrations ponctuelles ===== */
+async function migrateNeededCount() {
+  let changed = false;
+  state.events.forEach(ev => {
+    if (!ev.needed) {
+      const assignedCount = Object.keys(ev.hours || {}).length;
+      ev.needed = Math.min(5, Math.max(1, assignedCount || 2));
+      changed = true;
+    }
+  });
+  if (changed) await persist();
+}
+async function fixJuly2026() {
+  let changed = false;
+  state.events.forEach(ev => {
+    if (monthKey(ev.date) === '2026-07' && ev.category !== 'ceremonie') {
+      ev.category = 'ceremonie';
+      changed = true;
+    }
+  });
+  if (changed) await persist();
+}
+
+/* ===== Helpers dates ===== */
+function fmtDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+}
+function monthKey(iso) {
+  const [y, m] = iso.split('-');
+  return `${y}-${m}`;
+}
+function monthLabel(key) {
+  const [y, m] = key.split('-').map(Number);
+  return `${MONTHS_FR[m-1]} ${y}`;
+}
+function addMonths(key, n) {
+  let [y, m] = key.split('-').map(Number);
+  m += n;
+  while (m > 12) { m -= 12; y += 1; }
+  while (m < 1) { m += 12; y -= 1; }
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+function daysInMonth(key) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+function firstWeekdayIndex(key) {
+  const [y, m] = key.split('-').map(Number);
+  return (new Date(y, m - 1, 1).getDay() + 6) % 7;
+}
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+function uid() {
+  return 'ev' + Math.random().toString(36).slice(2, 9);
+}
+function escapeHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ===== Calculs d'équilibrage =====
+   Point de départ réel (communiqué par l'utilisatrice, comptes de
+   janvier 2026, en x, 1 x = 6h). Toutes les missions saisies dans
+   l'appli depuis janvier 2026 s'ajoutent par-dessus ce point de départ.
+   Principe : celui qui est le plus en retard est toujours ramené à 0 ;
+   quand quelqu'un travaille, on retire aux AUTRES le nombre de x qu'il
+   vient de gagner, pour que les compteurs ne grimpent pas à l'infini.
+   Mathématiquement, ça revient à recaler en permanence le minimum de
+   l'équipe à 0 — donc on peut recalculer directement l'écart de chacun
+   par rapport à la personne la plus en retard. */
+const BASELINE_X = {
+  Pascal:     { concert: 13, ceremonie: 14 },
+  Anne:       { concert: 16, ceremonie: 24 },
+  Stéphane:   { concert: 31, ceremonie: 9  },
+  Christophe: { concert: 30, ceremonie: 3  },
+  Marin:      { concert: 0,  ceremonie: 0  },
+};
+const BASELINE_REF_DATE = '2025-12-31'; // comptes de janvier 2026 : tout ce qui suit s'ajoute
+
+function computeTotalsSince(refDate) {
+  const totals = {};
+  PEOPLE.forEach(p => totals[p] = { concert: 0, ceremonie: 0 });
+  state.events.forEach(ev => {
+    if (ev.date <= refDate) return; // déjà compris dans le point de départ
+    PEOPLE.forEach(p => {
+      const h = ev.hours[p];
+      if (typeof h === 'number') totals[p][ev.category] += h;
+    });
+  });
+  return totals;
+}
+function computeXTotals() {
+  const increment = computeTotalsSince(BASELINE_REF_DATE);
+  const totals = {};
+  PEOPLE.forEach(p => {
+    totals[p] = {
+      concert: BASELINE_X[p].concert + increment[p].concert / HOURS_PER_X,
+      ceremonie: BASELINE_X[p].ceremonie + increment[p].ceremonie / HOURS_PER_X,
+    };
+  });
+  return totals;
+}
+function computeXBalances() {
+  const xTotals = computeXTotals();
+  const minX = {
+    concert: Math.min(...PEOPLE.map(p => xTotals[p].concert)),
+    ceremonie: Math.min(...PEOPLE.map(p => xTotals[p].ceremonie)),
+  };
+  const relative = {};
+  PEOPLE.forEach(p => {
+    relative[p] = {
+      concert: xTotals[p].concert - minX.concert,
+      ceremonie: xTotals[p].ceremonie - minX.ceremonie,
+    };
+  });
+  return relative; // 0 = actuellement le plus en retard sur cette filière
+}
+function suggestPeople(category, dispoMap, count) {
+  // Ordre de décision : 1) ceux qui ont dit oui, 2) ceux qui ont dit bof,
+  // et dans chaque groupe, les plus en retard sur CETTE filière d'abord
+  // (l'avance/retard globale ne compte pas, seulement concert OU cérémonie).
+  const totals = computeXTotals();
+  const byRetard = (a, b) => totals[a][category] - totals[b][category];
+  const ouiList = PEOPLE.filter(p => dispoMap[p] === 'oui').sort(byRetard);
+  const bofList = PEOPLE.filter(p => dispoMap[p] === 'bof').sort(byRetard);
+  return [...ouiList, ...bofList].slice(0, count);
+}
+
+
+/* ===== Render root ===== */
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    ${renderTopbar()}
+    <div id="statusBanner">${renderStatusBanner()}</div>
+    ${renderTabs()}
+    <div id="tab-content"></div>
+  `;
+  renderTabContent();
+  attachGlobalHandlers();
+}
+
+function renderTopbar() {
+  return `
+    <div class="topbar">
+      <div class="brand">
+        <h1>Effectifs</h1>
+        <span class="tagline">concerts &amp; cérémonies</span>
+      </div>
+      <span class="season">saison 2026</span>
+    </div>
+  `;
+}
+
+function renderStatusBanner() {
+  if (!isConfigured()) {
+    return `<div class="status-banner status-warn">
+      Non connectée à un Google Sheet partagé — les modifications ne sont conservées que dans cette fenêtre.
+      Renseignez <code>APPS_SCRIPT_URL</code> en haut du script pour activer la sauvegarde partagée.
+    </div>`;
+  }
+  if (state.syncError) {
+    return `<div class="status-banner status-error">
+      Dernière sauvegarde échouée — vérifiez votre connexion et réessayez. Vos dernières modifications ne sont peut-être pas enregistrées pour les autres.
+    </div>`;
+  }
+  return '';
+}
+
+function renderTabs() {
+  const tabs = [
+    ['effectifs', 'Effectifs'],
+    ['planning', 'Planning/Dispos'],
+    ['equilibrage', 'Tours'],
+  ];
+  return `
+    <div class="tabs">
+      ${tabs.map(([id, label]) => `
+        <button class="tab-btn ${state.tab === id ? 'active' : ''}" data-tab="${id}">${label}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderTabContent() {
+  const el = document.getElementById('tab-content');
+  if (state.tab === 'effectifs') el.innerHTML = renderEffectifsTab();
+  else if (state.tab === 'planning') el.innerHTML = renderPlanningTab();
+  else el.innerHTML = renderEquilibrage();
+  attachTabHandlers();
+}
+
+/* ===== Onglet Effectifs — liste en lecture seule, code couleur par personne ===== */
+function renderEffectifsTab() {
+  const legend = `
+    <div class="legend-row">
+      ${PEOPLE.map(p => `<span><span class="p-dot" style="background:var(--p-${PERSON_SLUG[p]});"></span>${p}</span>`).join('')}
+    </div>
+  `;
+
+  // toujours inclure le mois courant + les 2 suivants, même sans mission,
+  // pour que "rien n'apparaît" ne ressemble jamais à un bug
+  const months = [...new Set(state.events.map(e => monthKey(e.date)))];
+  months.push(monthKey(TODAY_ISO));
+  for (let i = 1; i <= 2; i++) months.push(addMonths(monthKey(TODAY_ISO), i));
+  const uniqueMonths = [...new Set(months)].sort().reverse();
+
+  const groups = uniqueMonths.map(key => {
+    const evs = state.events
+      .filter(e => monthKey(e.date) === key)
+      .sort((a,b) => b.date.localeCompare(a.date));
+    const body = evs.length
+      ? evs.map(renderEffRow).join('')
+      : `<div class="eff-row"><span class="hint">Aucune mission saisie pour ce mois pour l\u2019instant.</span></div>`;
+    return `
+      <div class="month-group">
+        <div class="month-title">${monthLabel(key)}</div>
+        <div class="card">${body}</div>
+      </div>
+    `;
+  }).join('');
+
+  return legend + groups;
+}
+
+function renderEffRow(ev) {
+  const assigned = PEOPLE.filter(p => ev.hours && ev.hours[p] !== undefined);
+  const chips = assigned.map(p => {
+    const h = ev.hours[p];
+    const hourTxt = typeof h === 'number' ? `<span class="h">${h}h</span>` : '';
+    const d = (ev.details && ev.details[p]) || {};
+    const tags = [d.transport || '', d.meal ? 'M' : ''].filter(Boolean).join(' · ');
+    const tagTxt = tags ? `<span class="h">${tags}</span>` : '';
+    return `<span class="p-chip p-chip-${PERSON_SLUG[p]}">${p} ${hourTxt} ${tagTxt}</span>`;
+  }).join('');
+  const filled = assigned.length;
+  const status = ev.needed
+    ? `<span class="hint">${filled}/${ev.needed}</span>`
+    : '';
+
+  return `
+    <div class="eff-row">
+      <div class="eff-date">${fmtDate(ev.date)}</div>
+      <div class="eff-main">
+        <div class="eff-label">
+          ${escapeHtml(ev.label)}
+          <span class="badge badge-${ev.category}">${CATEGORIES[ev.category]}</span>
+          ${status}
+        </div>
+        <div class="eff-people">${chips || '<span class="hint">Personne assigné pour l\u2019instant</span>'}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== Onglet Planning — calendrier, dispos + assignation ===== */
+function renderPlanningTab() {
+  if (state.editingId) {
+    const ev = state.editingId === 'new' ? null : state.events.find(e => e.id === state.editingId);
+    return renderForm(ev);
+  }
+
+  const intro = `<p class="section-note" style="margin-top:0;">Cliquez sur une mission pour indiquer vos dispos et gérer l'affectation, ou sur un jour vide pour créer une nouvelle mission.</p>`;
+
+  const months = [...new Set(state.events.map(e => monthKey(e.date)))];
+  months.push(monthKey(TODAY_ISO));
+  for (let i = 1; i <= state.monthsAhead; i++) months.push(addMonths(monthKey(TODAY_ISO), i));
+  const uniqueMonths = [...new Set(months)].sort().reverse();
+
+  const moreBtn = `<div style="margin-bottom:18px;"><button class="btn btn-sm" id="moreMonthBtn" type="button">+ Afficher le mois suivant</button></div>`;
+
+  return intro + moreBtn + uniqueMonths.map(renderCalendarMonth).join('');
+}
+
+function renderCalendarMonth(key) {
+  const nDays = daysInMonth(key);
+  const startIdx = firstWeekdayIndex(key);
+  const eventsByDay = {};
+  state.events.filter(e => monthKey(e.date) === key).forEach(ev => {
+    (eventsByDay[ev.date] = eventsByDay[ev.date] || []).push(ev);
+  });
+
+  let cells = '';
+  for (let i = 0; i < startIdx; i++) cells += `<div class="cal-cell cal-empty"></div>`;
+  for (let d = 1; d <= nDays; d++) {
+    const iso = `${key}-${String(d).padStart(2,'0')}`;
+    const dayEvents = eventsByDay[iso] || [];
+    const isToday = iso === TODAY_ISO;
+    const chips = dayEvents.map(ev => {
+      const filled = Object.keys(ev.hours || {}).length;
+      const full = ev.needed && filled >= ev.needed;
+      return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}">${full ? '✓ ' : ''}${escapeHtml(ev.label)}</div>`;
+    }).join('');
+    cells += `
+      <div class="cal-cell ${isToday ? 'cal-today' : ''}" data-add-date="${iso}">
+        <div class="cal-daynum">${d}</div>
+        <div class="cal-chips">${chips}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="month-group">
+      <div class="month-title">${monthLabel(key)}</div>
+      <div class="card cal-card">
+        <div class="cal-weekdays">${DAYS_FR.map(d => `<div>${d}</div>`).join('')}</div>
+        <div class="cal-grid">${cells}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSingleSelect(id, options, current, formatLabel) {
+  return `
+    <div class="dispo-toggle" id="${id}">
+      ${options.map(o => `<div class="dispo-opt ${String(current)===String(o)?'sel-oui':''}" data-val="${o}" style="flex:1;">${formatLabel ? formatLabel(o) : o}</div>`).join('')}
+    </div>
+  `;
+}
+
+/* ===== Formulaire (création / édition) — Planning uniquement =====
+   Dispo ET heures sont toutes les deux éditables ici. */
+function renderForm(ev) {
+  const isNew = !ev;
+  const defaultDate = state.prefillDate || TODAY_ISO;
+  const data = ev || {
+    id: null, date: defaultDate, label: '', category: 'concert',
+    needed: 2, dispo: {}, hours: {}, details: {},
+  };
+  const details = data.details || {};
+
+  const personRows = PEOPLE.map(p => {
+    const dispo = data.dispo[p] || '';
+    const hours = data.hours[p];
+    const d = details[p] || {};
+    const opts = ['oui','bof','non','incertain'];
+    return `
+      <div class="person-row" data-person="${p}">
+        <div class="person-name">${p}</div>
+        <div class="dispo-toggle" data-field="dispo">
+          ${opts.map(o => `<div class="dispo-opt ${dispo===o?'sel-'+o:''}" data-val="${o}">${DISPO_LABELS[o]}</div>`).join('')}
+        </div>
+        <input type="number" step="0.5" min="0" placeholder="h" class="hours-input" data-field="hours" value="${hours !== undefined && hours !== null ? hours : ''}">
+        <div class="person-extra">
+          <span class="mini-opt transport-opt ${d.transport==='R'?'sel':''}" data-val="R" title="Rejoint sur place">R</span>
+          <span class="mini-opt transport-opt ${d.transport==='DV'?'sel':''}" data-val="DV" title="Départ Vélizy">DV</span>
+          <span class="mini-opt meal-opt ${d.meal?'sel':''}" data-val="M" title="Mangeant">M</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="card form-card" id="eventForm">
+      <div class="form-grid">
+        <div>
+          <label class="field-label">Date</label>
+          <input type="date" id="f-date" value="${data.date}">
+        </div>
+        <div style="grid-column: span 2;">
+          <label class="field-label">Intitulé du service</label>
+          <input type="text" id="f-label" placeholder="Ex. Cérémonie Bordeaux" value="${escapeHtml(data.label)}">
+        </div>
+      </div>
+      <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="max-width:280px;flex:1;min-width:200px;">
+          <label class="field-label">Filière</label>
+          ${renderSingleSelect('f-category', ['concert','ceremonie'], data.category, c => CATEGORIES[c])}
+        </div>
+        <div style="max-width:260px;flex:1;min-width:180px;">
+          <label class="field-label">Musiciens requis</label>
+          ${renderSingleSelect('f-needed', NEEDED_OPTIONS, data.needed || 2)}
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+        <label class="field-label" style="margin-bottom:0;">Disponibilité et affectation par personne</label>
+        <button class="btn btn-sm" id="autoAssignBtn" type="button">Suggestion auto</button>
+      </div>
+      <p class="hint" style="margin:0 0 8px;">R = rejoint sur place · DV = départ Vélizy · M = mangeant</p>
+      <div id="personRows">${personRows}</div>
+      ${!isNew ? `<p class="hint" id="saveFlash" style="margin:10px 2px 0;opacity:0;transition:opacity .3s;color:var(--ink-teal);font-weight:500;">✓ Enregistré</p>` : ''}
+
+      <div class="form-actions">
+        <div>
+          ${!isNew ? `<button class="btn btn-sm btn-danger" id="deleteBtn" type="button">Supprimer ce service</button>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;">
+          ${isNew ? `
+            <button class="btn btn-sm" id="cancelBtn" type="button">Annuler</button>
+            <button class="btn btn-sm btn-primary" id="saveBtn" type="button">Créer le service</button>
+          ` : `
+            <button class="btn btn-sm btn-primary" id="cancelBtn" type="button">Fermer</button>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== Tours ===== */
+function renderEquilibrage() {
+  const rel = computeXBalances();
+  const maxX = Math.max(4, ...PEOPLE.flatMap(p => [rel[p].concert, rel[p].ceremonie]));
+
+  function bar(label, x, colorVar) {
+    const pct = maxX > 0 ? Math.min(100, (x / maxX) * 100) : 0;
+    return `
+      <div class="beam-row">
+        <div class="beam-label">${label}</div>
+        <div class="beam-track">
+          <div class="beam-fill" style="left:0;width:${pct}%;background:${colorVar};"></div>
+        </div>
+        <div class="beam-val">+${round1(x)}x</div>
+      </div>
+    `;
+  }
+
+  const cards = [...PEOPLE].sort((a,b) => {
+    const da = rel[a].concert + rel[a].ceremonie;
+    const db = rel[b].concert + rel[b].ceremonie;
+    return da - db;
+  }).map(p => {
+    const total = rel[p].concert + rel[p].ceremonie;
+    return `
+      <div class="card balance-card">
+        <div class="balance-head">
+          <span class="balance-name">${p}</span>
+          <span class="balance-delta" style="color:var(--ink-soft);">+${round1(total)}x</span>
+        </div>
+        ${bar('Concert', rel[p].concert, 'var(--concert)')}
+        ${bar('Cérémonie', rel[p].ceremonie, 'var(--ceremonie)')}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:var(--concert);"></span>Avance en x, filière concert</span>
+      <span><span class="legend-dot" style="background:var(--ceremonie);"></span>Avance en x, filière cérémonie</span>
+    </div>
+    ${cards}
+    <p class="section-note">1 x = ${HOURS_PER_X}h. Point de départ : vos comptes de janvier 2026. Toutes les missions saisies dans l'appli depuis s'ajoutent par-dessus. La personne la plus en retard sur chaque filière est toujours à 0 ; les autres affichent leur avance en x par rapport à elle.</p>
+  `;
+}
+
+/* ===== Handlers ===== */
+function attachGlobalHandlers() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      state.tab = btn.dataset.tab;
+      state.editingId = null;
+      state.prefillDate = null;
+      renderTabContent();
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+}
+
+function attachTabHandlers() {
+  if (state.tab === 'planning') {
+    const moreBtn = document.getElementById('moreMonthBtn');
+    if (moreBtn) moreBtn.onclick = () => { state.monthsAhead += 1; renderTabContent(); };
+    document.querySelectorAll('[data-edit]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        state.editingId = el.dataset.edit;
+        state.prefillDate = null;
+        renderTabContent();
+      };
+    });
+    document.querySelectorAll('[data-add-date]').forEach(cell => {
+      cell.onclick = () => {
+        state.editingId = 'new';
+        state.prefillDate = cell.dataset.addDate;
+        renderTabContent();
+      };
+    });
+  }
+  if (state.editingId) attachFormHandlers();
+}
+
+function attachFormHandlers() {
+  const form = document.getElementById('eventForm');
+  if (!form) return;
+  const isNew = state.editingId === 'new';
+
+  function updateRowHighlight(row) {
+    const p = row.dataset.person;
+    const val = row.querySelector('.hours-input').value;
+    if (val !== '') {
+      row.style.background = `var(--p-${PERSON_SLUG[p]}-soft)`;
+      row.style.borderLeft = `3px solid var(--p-${PERSON_SLUG[p]})`;
+      row.style.borderRadius = '8px';
+      row.style.paddingLeft = '7px';
+    } else {
+      row.style.background = '';
+      row.style.borderLeft = '';
+      row.style.paddingLeft = '';
+    }
+  }
+
+  function flashSaved() {
+    const el = document.getElementById('saveFlash');
+    if (!el) return;
+    el.style.opacity = '1';
+    clearTimeout(flashSaved._t);
+    flashSaved._t = setTimeout(() => { el.style.opacity = '0'; }, 1100);
+  }
+
+  async function autoSave() {
+    if (isNew) return; // une mission en cours de création se valide via "Créer le service"
+    const payload = readForm();
+    if (!payload.date || !payload.label) return;
+    const target = state.events.find(e => e.id === state.editingId);
+    if (!target) return;
+    Object.assign(target, payload);
+    await persist();
+    flashSaved();
+    refreshBanner();
+  }
+
+  form.querySelectorAll('.person-row').forEach(row => {
+    row.querySelectorAll('.dispo-opt').forEach(opt => {
+      opt.onclick = () => {
+        row.querySelectorAll('.dispo-opt').forEach(o => o.className = 'dispo-opt');
+        opt.classList.add('sel-' + opt.dataset.val);
+        autoSave();
+      };
+    });
+    row.querySelectorAll('.transport-opt').forEach(opt => {
+      opt.onclick = () => {
+        const already = opt.classList.contains('sel');
+        row.querySelectorAll('.transport-opt').forEach(o => o.classList.remove('sel'));
+        if (!already) opt.classList.add('sel'); // reclic pour désélectionner
+        autoSave();
+      };
+    });
+    const mealOpt = row.querySelector('.meal-opt');
+    if (mealOpt) mealOpt.onclick = () => { mealOpt.classList.toggle('sel'); autoSave(); };
+    const hoursInput = row.querySelector('.hours-input');
+    updateRowHighlight(row);
+    hoursInput.addEventListener('input', () => updateRowHighlight(row));
+    hoursInput.addEventListener('change', () => autoSave());
+  });
+
+  const catToggle = document.getElementById('f-category');
+  catToggle.querySelectorAll('.dispo-opt').forEach(opt => {
+    opt.onclick = () => {
+      catToggle.querySelectorAll('.dispo-opt').forEach(o => o.classList.remove('sel-oui'));
+      opt.classList.add('sel-oui');
+      autoSave();
+    };
+  });
+
+  const neededToggle = document.getElementById('f-needed');
+  neededToggle.querySelectorAll('.dispo-opt').forEach(opt => {
+    opt.onclick = () => {
+      neededToggle.querySelectorAll('.dispo-opt').forEach(o => o.classList.remove('sel-oui'));
+      opt.classList.add('sel-oui');
+      autoSave();
+    };
+  });
+
+  document.getElementById('f-date').addEventListener('change', () => autoSave());
+  document.getElementById('f-label').addEventListener('change', () => autoSave());
+
+  document.getElementById('autoAssignBtn').onclick = () => {
+    const category = catToggle.querySelector('.sel-oui').dataset.val;
+    const needed = parseInt(neededToggle.querySelector('.sel-oui').dataset.val, 10);
+    const dispoMap = {};
+    form.querySelectorAll('.person-row').forEach(row => {
+      const sel = row.querySelector('[class*="sel-"]');
+      if (sel) dispoMap[row.dataset.person] = sel.dataset.val;
+    });
+    const picks = suggestPeople(category, dispoMap, needed);
+    form.querySelectorAll('.person-row').forEach(row => {
+      const p = row.dataset.person;
+      const hoursInput = row.querySelector('.hours-input');
+      if (picks.includes(p) && !hoursInput.value) {
+        hoursInput.value = 6;
+      }
+      updateRowHighlight(row);
+    });
+    autoSave();
+  };
+
+  function readForm() {
+    const date = document.getElementById('f-date').value;
+    const label = document.getElementById('f-label').value.trim();
+    const category = catToggle.querySelector('.sel-oui').dataset.val;
+    const needed = parseInt(neededToggle.querySelector('.sel-oui').dataset.val, 10);
+    const dispo = {};
+    const hours = {};
+    const details = {};
+    form.querySelectorAll('.person-row').forEach(row => {
+      const p = row.dataset.person;
+      const sel = row.querySelector('[class*="sel-"]');
+      if (sel) dispo[p] = sel.dataset.val;
+      const hVal = row.querySelector('.hours-input').value;
+      if (hVal !== '') hours[p] = parseFloat(hVal);
+      const transportEl = row.querySelector('.transport-opt.sel');
+      const meal = row.querySelector('.meal-opt.sel') ? true : false;
+      if (transportEl || meal) {
+        details[p] = { transport: transportEl ? transportEl.dataset.val : '', meal };
+      }
+    });
+    return { date, label, category, needed, dispo, hours, details };
+  }
+
+  function closeForm() {
+    state.editingId = null;
+    state.prefillDate = null;
+    renderTabContent();
+  }
+
+  document.getElementById('cancelBtn').onclick = closeForm;
+
+  const delBtn = document.getElementById('deleteBtn');
+  if (delBtn) {
+    delBtn.onclick = async () => {
+      state.events = state.events.filter(e => e.id !== state.editingId);
+      await persist();
+      closeForm();
+    };
+  }
+
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const payload = readForm();
+      if (!payload.date || !payload.label) { alert('Merci de renseigner la date et l\u2019intitulé du service.'); return; }
+      state.events.push({ id: uid(), ...payload });
+      await persist();
+      closeForm();
+    };
+  }
+}
+
+/* Rafraîchit uniquement la bannière de statut (sans perturber un formulaire ouvert) */
+function refreshBanner() {
+  const el = document.getElementById('statusBanner');
+  if (el) el.innerHTML = renderStatusBanner();
+}
+
+/* ===== Boot ===== */
+(async function init() {
+  await loadData();
+  await fixJuly2026();
+  await migrateNeededCount();
+  render();
+})();
+
+</script>
+</body>
+</html>
