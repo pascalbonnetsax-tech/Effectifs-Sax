@@ -120,6 +120,7 @@
   .badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase;}
   .badge-concert{background:var(--surface-sunk);color:var(--ink-soft);border:0.5px solid var(--line-strong);}
   .badge-ceremonie{background:transparent;color:var(--ink-soft);border:0.5px solid var(--ink-soft);}
+  .badge-tableau{background:var(--ink-teal-soft);color:var(--ink-teal);}
 
   /* planning */
   .month-group{margin-bottom:26px;}
@@ -591,6 +592,7 @@ function renderEffRow(ev) {
           ${escapeHtml(ev.label)}
           <span class="badge badge-${ev.category}">${CATEGORIES[ev.category]}</span>
           ${status}
+          ${ev.tableauRempli ? `<span class="badge badge-tableau">✓ Tableau rempli</span>` : ''}
         </div>
         <div class="eff-people">${chips || '<span class="hint">Personne assigné pour l\u2019instant</span>'}</div>
       </div>
@@ -712,7 +714,11 @@ function renderForm(ev) {
 
     <div class="card form-card">
       <label class="field-label">Infos pratiques</label>
-      <textarea id="f-notes" rows="3" placeholder="Adresse, point de rendez-vous, contact sur place, tenue..." style="width:100%;font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);background:var(--surface);border:0.5px solid var(--line-strong);border-radius:8px;padding:9px 10px;resize:vertical;">${escapeHtml(data.notes || '')}</textarea>
+      <input type="text" id="f-notes" placeholder="Adresse, point de rendez-vous, contact sur place, tenue..." value="${escapeHtml(data.notes || '')}" style="margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;">
+        <input type="checkbox" id="f-tableau" ${data.tableauRempli ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--ink-teal);cursor:pointer;">
+        Tableau rempli
+      </label>
     </div>
 
     <div class="card form-card">
@@ -933,6 +939,7 @@ function attachFormHandlers() {
   document.getElementById('f-date').addEventListener('change', () => autoSave());
   document.getElementById('f-label').addEventListener('change', () => autoSave());
   document.getElementById('f-notes').addEventListener('change', () => autoSave());
+  document.getElementById('f-tableau').addEventListener('change', () => autoSave());
 
   document.getElementById('autoAssignBtn').onclick = () => {
     const category = catToggle.querySelector('.sel-oui').dataset.val;
@@ -958,6 +965,7 @@ function attachFormHandlers() {
     const date = document.getElementById('f-date').value;
     const label = document.getElementById('f-label').value.trim();
     const notes = document.getElementById('f-notes').value;
+    const tableauRempli = document.getElementById('f-tableau').checked;
     const category = catToggle.querySelector('.sel-oui').dataset.val;
     const needed = parseInt(neededToggle.querySelector('.sel-oui').dataset.val, 10);
     const dispo = {};
@@ -975,7 +983,7 @@ function attachFormHandlers() {
         details[p] = { transport: transportEl ? transportEl.dataset.val : '', meal };
       }
     });
-    return { date, label, notes, category, needed, dispo, hours, details };
+    return { date, label, notes, tableauRempli, category, needed, dispo, hours, details };
   }
 
   function closeForm() {
