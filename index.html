@@ -120,7 +120,7 @@
   .badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase;}
   .badge-concert{background:var(--surface-sunk);color:var(--ink-soft);border:0.5px solid var(--line-strong);}
   .badge-ceremonie{background:transparent;color:var(--ink-soft);border:0.5px solid var(--ink-soft);}
-  .badge-tableau{background:var(--ink-teal-soft);color:var(--ink-teal);}
+  .tick-done{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--ink-teal-soft);color:var(--ink-teal);font-size:10px;font-weight:700;}
 
   /* planning */
   .month-group{margin-bottom:26px;}
@@ -592,7 +592,7 @@ function renderEffRow(ev) {
           ${escapeHtml(ev.label)}
           <span class="badge badge-${ev.category}">${CATEGORIES[ev.category]}</span>
           ${status}
-          ${ev.tableauRempli ? `<span class="badge badge-tableau">✓ Tableau rempli</span>` : ''}
+          ${ev.tableauRempli ? `<span class="tick-done" title="Tableau rempli">✓</span>` : ''}
         </div>
         <div class="eff-people">${chips || '<span class="hint">Personne assigné pour l\u2019instant</span>'}</div>
       </div>
