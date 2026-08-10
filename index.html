@@ -301,7 +301,11 @@ function isConfigured() {
   return APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('COLLEZ_ICI');
 }
 
-/* ===== Chargement / sauvegarde via Google Sheet ===== */
+/* ===== Chargement / sauvegarde via Google Sheet =====
+   Règle de sécurité : on n'écrit JAMAIS dans le Sheet tant que la lecture
+   initiale n'a pas explicitement réussi (state.connected === true après
+   un GET qui a abouti). Ça évite qu'un problème réseau ponctuel fasse
+   écraser les vraies données par les données d'exemple. */
 async function loadData() {
   if (!isConfigured()) {
     const seedEl = document.getElementById('seed-data');
@@ -312,25 +316,32 @@ async function loadData() {
   try {
     const res = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
     const data = await res.json();
-    state.connected = true;
-    if (Array.isArray(data) && data.length) {
-      state.events = data;
+    if (Array.isArray(data)) {
+      state.events = data; // même si vide : c'est un état confirmé du Sheet, pas une erreur
+      state.connected = true;
       return;
     }
+    throw new Error('Réponse inattendue du Sheet');
   } catch (e) {
     console.error('Erreur de chargement', e);
     state.connected = false;
+    // on affiche quand même quelque chose pour ne pas montrer une appli vide,
+    // mais rien de tout ça ne sera jamais envoyé au Sheet (voir persist())
+    const seedEl = document.getElementById('seed-data');
+    state.events = JSON.parse(seedEl.textContent);
   }
-  const seedEl = document.getElementById('seed-data');
-  state.events = JSON.parse(seedEl.textContent);
-  if (state.connected) await persist();
 }
 
 async function persist() {
   if (!isConfigured()) return;
+  if (!state.connected) {
+    // sécurité : la lecture initiale n'a jamais confirmé l'état réel du Sheet,
+    // on refuse d'écrire pour ne jamais écraser de vraies données
+    state.syncError = true;
+    return;
+  }
   try {
     await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(state.events) });
-    state.connected = true;
     state.syncError = false;
   } catch (e) {
     console.error('Erreur de sauvegarde', e);
@@ -498,6 +509,12 @@ function renderStatusBanner() {
     return `<div class="status-banner status-warn">
       Non connectée à un Google Sheet partagé — les modifications ne sont conservées que dans cette fenêtre.
       Renseignez <code>APPS_SCRIPT_URL</code> en haut du script pour activer la sauvegarde partagée.
+    </div>`;
+  }
+  if (!state.connected) {
+    return `<div class="status-banner status-error">
+      Impossible de récupérer les données à jour du Sheet (réseau ou connexion). <strong>Vos modifications ne seront pas enregistrées</strong> tant que ce n'est pas rétabli — évitez de saisir quoi que ce soit pour l'instant.
+      <button class="btn btn-sm" id="retryLoadBtn" type="button" style="margin-left:6px;">Réessayer</button>
     </div>`;
   }
   if (state.syncError) {
@@ -807,6 +824,7 @@ function renderEquilibrage() {
 
 /* ===== Handlers ===== */
 function attachGlobalHandlers() {
+  attachBannerHandlers();
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.onclick = () => {
       state.tab = btn.dataset.tab;
@@ -1019,6 +1037,18 @@ function attachFormHandlers() {
 function refreshBanner() {
   const el = document.getElementById('statusBanner');
   if (el) el.innerHTML = renderStatusBanner();
+  attachBannerHandlers();
+}
+
+function attachBannerHandlers() {
+  const retryBtn = document.getElementById('retryLoadBtn');
+  if (retryBtn) {
+    retryBtn.onclick = async () => {
+      retryBtn.textContent = '...';
+      await loadData();
+      render(); // ré-affiche tout avec les données fraîchement récupérées si succès
+    };
+  }
 }
 
 /* ===== Boot ===== */
