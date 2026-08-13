@@ -203,6 +203,10 @@
   .cal-cell.cal-empty{border:none;cursor:default;background:transparent;}
   .cal-cell.cal-empty:hover{background:transparent;}
   .cal-cell.cal-today{border-color:var(--ink-teal);}
+  .cal-cell.is-past{opacity:0.5;}
+  .cal-cell.is-past:hover{opacity:0.75;}
+  .eff-row.is-past{opacity:0.55;}
+  .eff-row.is-past:hover{opacity:0.85;background:var(--surface-sunk);}
   .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-bottom:3px;}
   .cal-today .cal-daynum{color:var(--ink-teal);font-weight:500;}
   .cal-chips{display:flex;flex-direction:column;gap:2px;min-width:0;}
@@ -602,7 +606,7 @@ function renderEffRow(ev) {
     : '';
 
   return `
-    <div class="eff-row" data-edit="${ev.id}">
+    <div class="eff-row ${ev.date < TODAY_ISO ? 'is-past' : ''}" data-edit="${ev.id}">
       <div class="eff-date">${fmtDate(ev.date)}</div>
       <div class="eff-main">
         <div class="eff-label">
@@ -650,13 +654,14 @@ function renderCalendarMonth(key) {
     const iso = `${key}-${String(d).padStart(2,'0')}`;
     const dayEvents = eventsByDay[iso] || [];
     const isToday = iso === TODAY_ISO;
+    const isPast = iso < TODAY_ISO;
     const chips = dayEvents.map(ev => {
       const filled = Object.keys(ev.hours || {}).length;
       const full = ev.needed && filled >= ev.needed;
       return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}">${full ? '✓ ' : ''}${escapeHtml(ev.label)}</div>`;
     }).join('');
     cells += `
-      <div class="cal-cell ${isToday ? 'cal-today' : ''}" data-add-date="${iso}">
+      <div class="cal-cell ${isToday ? 'cal-today' : ''} ${isPast ? 'is-past' : ''}" data-add-date="${iso}">
         <div class="cal-daynum">${d}</div>
         <div class="cal-chips">${chips}</div>
       </div>
