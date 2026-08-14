@@ -832,7 +832,18 @@ function attachGlobalHandlers() {
   attachBannerHandlers();
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.onclick = () => {
-      state.tab = btn.dataset.tab;
+      const target = btn.dataset.tab;
+      if (target !== state.tab) {
+        if (state.tab === 'effectifs' && target !== 'effectifs') {
+          // on quitte le premier onglet : on garde une trace pour que le bouton retour y ramène
+          history.pushState({ tabAway: true }, '');
+        } else if (target === 'effectifs' && state.tab !== 'effectifs') {
+          // retour manuel vers Effectifs : on nettoie l'entrée sans empiler
+          history.replaceState(null, '');
+        }
+        // entre deux onglets autres qu'Effectifs : rien à empiler, le retour ramènera direct au premier
+      }
+      state.tab = target;
       state.editingId = null;
       state.prefillDate = null;
       renderTabContent();
@@ -1062,13 +1073,19 @@ function attachBannerHandlers() {
   }
 }
 
-/* Bouton "retour" du téléphone : ferme la fiche ouverte au lieu de quitter la page */
+/* Bouton "retour" du téléphone : ferme la fiche ouverte, sinon revient au premier onglet */
 window.addEventListener('popstate', () => {
   if (state.editingId !== null) {
     state.editingId = null;
     state.prefillDate = null;
     renderTabContent();
+    return;
   }
+  if (state.tab !== 'effectifs') {
+    state.tab = 'effectifs';
+    render();
+  }
+  // sinon (déjà sur Effectifs, rien d'ouvert) : on laisse le comportement normal du navigateur
 });
 
 /* ===== Boot ===== */
