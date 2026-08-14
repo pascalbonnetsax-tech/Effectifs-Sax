@@ -842,6 +842,14 @@ function attachGlobalHandlers() {
   });
 }
 
+function openForm(id, context, prefillDate) {
+  state.editingId = id;
+  state.editContext = context;
+  state.prefillDate = prefillDate || null;
+  history.pushState({ formOpen: true }, '');
+  renderTabContent();
+}
+
 function attachTabHandlers() {
   if (state.tab === 'planning') {
     const moreBtn = document.getElementById('moreMonthBtn');
@@ -849,28 +857,19 @@ function attachTabHandlers() {
     document.querySelectorAll('[data-edit]').forEach(el => {
       el.onclick = (e) => {
         e.stopPropagation();
-        state.editingId = el.dataset.edit;
-        state.editContext = 'planning';
-        state.prefillDate = null;
-        renderTabContent();
+        openForm(el.dataset.edit, 'planning');
       };
     });
     document.querySelectorAll('[data-add-date]').forEach(cell => {
       cell.onclick = () => {
-        state.editingId = 'new';
-        state.editContext = 'planning';
-        state.prefillDate = cell.dataset.addDate;
-        renderTabContent();
+        openForm('new', 'planning', cell.dataset.addDate);
       };
     });
   }
   if (state.tab === 'effectifs') {
     document.querySelectorAll('[data-edit]').forEach(el => {
       el.onclick = () => {
-        state.editingId = el.dataset.edit;
-        state.editContext = 'effectifs';
-        state.prefillDate = null;
-        renderTabContent();
+        openForm(el.dataset.edit, 'effectifs');
       };
     });
   }
@@ -1010,9 +1009,16 @@ function attachFormHandlers() {
   }
 
   function closeForm() {
-    state.editingId = null;
-    state.prefillDate = null;
-    renderTabContent();
+    // on revient en arrière dans l'historique ; c'est le gestionnaire
+    // popstate (global) qui remet réellement editingId à null et re-render —
+    // ainsi le bouton "retour" du téléphone fait exactement la même chose.
+    if (history.state && history.state.formOpen) {
+      history.back();
+    } else {
+      state.editingId = null;
+      state.prefillDate = null;
+      renderTabContent();
+    }
   }
 
   document.getElementById('cancelBtn').onclick = closeForm;
@@ -1055,6 +1061,15 @@ function attachBannerHandlers() {
     };
   }
 }
+
+/* Bouton "retour" du téléphone : ferme la fiche ouverte au lieu de quitter la page */
+window.addEventListener('popstate', () => {
+  if (state.editingId !== null) {
+    state.editingId = null;
+    state.prefillDate = null;
+    renderTabContent();
+  }
+});
 
 /* ===== Boot ===== */
 (async function init() {
