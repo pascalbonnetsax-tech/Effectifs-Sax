@@ -149,6 +149,7 @@
   /* form */
   .form-card{padding:20px 22px;margin-bottom:20px;}
   .deadline-row{margin-top:14px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;}
+  .deadline-field{max-width:220px;}
   .notes-input{margin-bottom:14px;}
   .tableau-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;}
   .tableau-check input{width:16px;height:16px;accent-color:var(--ink-teal);cursor:pointer;}
@@ -234,9 +235,11 @@
     .person-row{padding:7px 0;}
     .form-grid{margin-bottom:8px;gap:8px;grid-template-columns:1fr 1fr;}
     .deadline-hint{display:none;}
-    .deadline-row{margin-top:8px;gap:10px;}
+    .deadline-row{margin-top:8px;gap:8px;flex-wrap:nowrap;align-items:flex-end;}
+    .deadline-field{max-width:130px;flex:0 0 auto;}
+    .deadline-row .btn{flex:1;padding:8px 6px;font-size:11.5px;white-space:nowrap;}
     .notes-input{margin-bottom:8px;}
-    label.field-label{margin-bottom:2px;font-size:10.5px;}
+    label.field-label{margin-bottom:2px;font-size:9px;}
     input[type=text],input[type=date],input[type=number],select{padding:6px 8px;}
   }
 
@@ -755,11 +758,11 @@ function renderForm(ev) {
         </div>
       </div>
       <div class="deadline-row">
-        <div style="max-width:220px;">
+        <div class="deadline-field">
           <label class="field-label">Date limite de réponse</label>
           <input type="date" id="f-deadline" value="${data.deadline || ''}">
         </div>
-        ${!isNew && isConfigured() ? `<button class="btn btn-sm" id="notifyOneBtn" type="button">✉ Envoyer un rappel pour cette mission</button>` : ''}
+        ${!isNew && isConfigured() ? `<button class="btn btn-sm" id="notifyOneBtn" type="button">✉ Envoyer un rappel</button>` : ''}
       </div>
       <p class="hint deadline-hint" style="margin:8px 2px 0;">Un rappel est envoyé automatiquement par mail 2 jours avant la date limite à ceux qui n'ont pas répondu.</p>
     </div>
@@ -1033,7 +1036,7 @@ function attachFormHandlers() {
         alert('L\u2019envoi a échoué — vérifiez votre connexion et réessayez.');
       }
       notifyOneBtn.disabled = false;
-      notifyOneBtn.textContent = '✉ Envoyer un rappel pour cette mission';
+      notifyOneBtn.textContent = '✉ Envoyer un rappel';
     };
   }
   document.getElementById('f-label').addEventListener('change', () => autoSave());
