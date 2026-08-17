@@ -735,11 +735,14 @@ function renderForm(ev) {
           <input type="text" id="f-label" placeholder="Ex. Cérémonie Bordeaux" value="${escapeHtml(data.label)}">
         </div>
       </div>
-      <div style="margin-top:14px;max-width:220px;">
-        <label class="field-label">Date limite de réponse</label>
-        <input type="date" id="f-deadline" value="${data.deadline || ''}">
-        <p class="hint" style="margin:5px 2px 0;">Un rappel est envoyé par mail 2 jours avant à ceux qui n'ont pas répondu.</p>
+      <div style="margin-top:14px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="max-width:220px;">
+          <label class="field-label">Date limite de réponse</label>
+          <input type="date" id="f-deadline" value="${data.deadline || ''}">
+        </div>
+        ${!isNew && isConfigured() ? `<button class="btn btn-sm" id="notifyOneBtn" type="button">✉ Envoyer un rappel pour cette mission</button>` : ''}
       </div>
+      <p class="hint" style="margin:8px 2px 0;">Un rappel est envoyé automatiquement par mail 2 jours avant la date limite à ceux qui n'ont pas répondu.</p>
     </div>
 
     <div class="card form-card">
@@ -996,6 +999,24 @@ function attachFormHandlers() {
 
   document.getElementById('f-date').addEventListener('change', () => autoSave());
   document.getElementById('f-deadline').addEventListener('change', () => autoSave());
+
+  const notifyOneBtn = document.getElementById('notifyOneBtn');
+  if (notifyOneBtn) {
+    notifyOneBtn.onclick = async () => {
+      if (!confirm('Envoyer un mail de rappel maintenant, uniquement à ceux qui n\u2019ont pas encore répondu pour cette mission ?')) return;
+      notifyOneBtn.disabled = true;
+      notifyOneBtn.textContent = 'Envoi...';
+      try {
+        await fetch(APPS_SCRIPT_URL + '?action=notifyOne&id=' + encodeURIComponent(state.editingId), { method: 'GET' });
+        alert('Rappel envoyé.');
+      } catch (e) {
+        console.error('Erreur d\u2019envoi du rappel', e);
+        alert('L\u2019envoi a échoué — vérifiez votre connexion et réessayez.');
+      }
+      notifyOneBtn.disabled = false;
+      notifyOneBtn.textContent = '✉ Envoyer un rappel pour cette mission';
+    };
+  }
   document.getElementById('f-label').addEventListener('change', () => autoSave());
   document.getElementById('f-notes').addEventListener('change', () => autoSave());
   document.getElementById('f-tableau').addEventListener('change', () => autoSave());
