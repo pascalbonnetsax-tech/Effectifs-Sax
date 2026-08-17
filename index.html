@@ -221,6 +221,17 @@
     .cal-chip{font-size:9.5px;}
   }
 
+  /* mobile : moins de scroll, police un peu plus compacte */
+  @media (max-width:600px){
+    body{font-size:13px;}
+    .form-card{padding:13px 15px;margin-bottom:12px;}
+    .balance-card{padding:12px 14px;margin-bottom:8px;}
+    .eff-row{padding:9px 12px;}
+    .person-row{padding:7px 0;}
+    .form-grid{margin-bottom:10px;gap:10px;}
+    .deadline-hint{display:none;}
+  }
+
   /* navigation mois (Nouveau service) */
   .month-nav{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
   .month-nav-label{font-family:'Fraunces',serif;font-size:18px;font-weight:500;text-transform:capitalize;min-width:160px;text-align:center;}
@@ -742,7 +753,7 @@ function renderForm(ev) {
         </div>
         ${!isNew && isConfigured() ? `<button class="btn btn-sm" id="notifyOneBtn" type="button">✉ Envoyer un rappel pour cette mission</button>` : ''}
       </div>
-      <p class="hint" style="margin:8px 2px 0;">Un rappel est envoyé automatiquement par mail 2 jours avant la date limite à ceux qui n'ont pas répondu.</p>
+      <p class="hint deadline-hint" style="margin:8px 2px 0;">Un rappel est envoyé automatiquement par mail 2 jours avant la date limite à ceux qui n'ont pas répondu.</p>
     </div>
 
     <div class="card form-card">
