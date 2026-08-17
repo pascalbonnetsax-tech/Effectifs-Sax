@@ -635,7 +635,10 @@ function renderPlanningTab() {
   for (let i = 1; i <= state.monthsAhead; i++) months.push(addMonths(monthKey(TODAY_ISO), i));
   const uniqueMonths = [...new Set(months)].sort().reverse();
 
-  const moreBtn = `<div style="margin-bottom:18px;"><button class="btn btn-sm" id="moreMonthBtn" type="button">+ Afficher le mois suivant</button></div>`;
+  const moreBtn = `<div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-sm" id="moreMonthBtn" type="button">+ Afficher le mois suivant</button>
+    ${isConfigured() ? `<button class="btn btn-sm" id="syncCalendarBtn" type="button">↻ Synchroniser l'agenda</button>` : ''}
+  </div>`;
 
   return intro + moreBtn + uniqueMonths.map(renderCalendarMonth).join('');
 }
@@ -870,6 +873,23 @@ function attachTabHandlers() {
   if (state.tab === 'planning') {
     const moreBtn = document.getElementById('moreMonthBtn');
     if (moreBtn) moreBtn.onclick = () => { state.monthsAhead += 1; renderTabContent(); };
+    const syncBtn = document.getElementById('syncCalendarBtn');
+    if (syncBtn) syncBtn.onclick = async () => {
+      syncBtn.disabled = true;
+      syncBtn.textContent = 'Synchronisation...';
+      try {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=sync', { method: 'GET' });
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          state.events = data;
+          state.connected = true;
+        }
+      } catch (e) {
+        console.error('Erreur de synchronisation', e);
+        alert('La synchronisation a échoué — vérifiez votre connexion et réessayez.');
+      }
+      renderTabContent();
+    };
     document.querySelectorAll('[data-edit]').forEach(el => {
       el.onclick = (e) => {
         e.stopPropagation();
