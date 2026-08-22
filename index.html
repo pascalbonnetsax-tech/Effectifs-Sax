@@ -212,8 +212,6 @@
   .cal-cell.is-past:hover{opacity:0.65;}
   .eff-row.is-past{opacity:0.4;}
   .eff-row.is-past:hover{opacity:0.75;background:var(--surface-sunk);}
-  .eff-row.eff-incomplete{background:var(--red-soft);}
-  .eff-row.eff-incomplete:hover{background:var(--red-soft);filter:brightness(0.97);}
   .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-bottom:3px;}
   .cal-today .cal-daynum{color:var(--ink-teal);font-weight:500;}
   .cal-chips{display:flex;flex-direction:column;gap:2px;min-width:0;}
@@ -614,6 +612,20 @@ function renderEffectifsTab() {
   return legend + groups;
 }
 
+function missingRespondersGradient(ev) {
+  const missing = PEOPLE.filter(p => !(ev.dispo && ev.dispo[p]));
+  if (!missing.length) return '';
+  const n = missing.length;
+  const stops = [];
+  missing.forEach((p, i) => {
+    const color = `var(--p-${PERSON_SLUG[p]}-soft)`;
+    const start = (i / n * 100).toFixed(2);
+    const end = ((i + 1) / n * 100).toFixed(2);
+    stops.push(`${color} ${start}%`, `${color} ${end}%`);
+  });
+  return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
 function renderEffRow(ev) {
   const assigned = PEOPLE.filter(p => ev.hours && ev.hours[p] !== undefined);
   const chips = assigned.map(p => {
@@ -628,10 +640,10 @@ function renderEffRow(ev) {
   const status = ev.needed
     ? `<span class="hint">${filled}/${ev.needed}</span>`
     : '';
-  const allResponded = PEOPLE.every(p => ev.dispo && ev.dispo[p]);
+  const gradient = missingRespondersGradient(ev);
 
   return `
-    <div class="eff-row ${ev.date < TODAY_ISO ? 'is-past' : ''} ${!allResponded ? 'eff-incomplete' : ''}" data-edit="${ev.id}">
+    <div class="eff-row ${ev.date < TODAY_ISO ? 'is-past' : ''}" data-edit="${ev.id}" ${gradient ? `style="background:${gradient};"` : ''}>
       <div class="eff-date">${fmtDate(ev.date)}</div>
       <div class="eff-main">
         <div class="eff-label">
