@@ -618,7 +618,7 @@ function missingRespondersGradient(ev) {
   const n = missing.length;
   const stops = [];
   missing.forEach((p, i) => {
-    const color = `color-mix(in srgb, var(--p-${PERSON_SLUG[p]}) 38%, var(--surface) 62%)`;
+    const color = `color-mix(in srgb, var(--p-${PERSON_SLUG[p]}) 30%, var(--surface) 70%)`;
     const start = (i / n * 100).toFixed(2);
     const end = ((i + 1) / n * 100).toFixed(2);
     stops.push(`${color} ${start}%`, `${color} ${end}%`);
