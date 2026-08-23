@@ -995,8 +995,9 @@ function attachFormHandlers() {
   form.querySelectorAll('.person-row').forEach(row => {
     row.querySelectorAll('.dispo-opt').forEach(opt => {
       opt.onclick = () => {
+        const alreadySelected = opt.classList.contains('sel-' + opt.dataset.val);
         row.querySelectorAll('.dispo-opt').forEach(o => o.className = 'dispo-opt');
-        opt.classList.add('sel-' + opt.dataset.val);
+        if (!alreadySelected) opt.classList.add('sel-' + opt.dataset.val);
         autoSave();
       };
     });
