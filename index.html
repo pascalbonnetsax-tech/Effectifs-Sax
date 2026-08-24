@@ -675,6 +675,7 @@ function renderPlanningTab() {
   const moreBtn = `<div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap;">
     <button class="btn btn-sm" id="moreMonthBtn" type="button">+ Afficher le mois suivant</button>
     ${isConfigured() ? `<button class="btn btn-sm" id="syncCalendarBtn" type="button">↻ Synchroniser l'agenda</button>` : ''}
+    ${isConfigured() ? `<button class="btn btn-sm" id="notifyAllBtn" type="button">🔔 Notifier l'équipe</button>` : ''}
   </div>`;
 
   return intro + moreBtn + uniqueMonths.map(renderCalendarMonth).join('');
@@ -929,6 +930,21 @@ function attachTabHandlers() {
         alert('La synchronisation a échoué — vérifiez votre connexion et réessayez.');
       }
       renderTabContent();
+    };
+    const notifyAllBtn = document.getElementById('notifyAllBtn');
+    if (notifyAllBtn) notifyAllBtn.onclick = async () => {
+      if (!confirm('Envoyer un mail à toute l\u2019équipe pour signaler que de nouvelles missions sont en ligne ?')) return;
+      notifyAllBtn.disabled = true;
+      notifyAllBtn.textContent = 'Envoi...';
+      try {
+        await fetch(APPS_SCRIPT_URL + '?action=notifyAll', { method: 'GET' });
+        alert('Notification envoyée à toute l\u2019équipe.');
+      } catch (e) {
+        console.error('Erreur d\u2019envoi de la notification', e);
+        alert('L\u2019envoi a échoué — vérifiez votre connexion et réessayez.');
+      }
+      notifyAllBtn.disabled = false;
+      notifyAllBtn.textContent = '🔔 Notifier l\u2019équipe';
     };
     document.querySelectorAll('[data-edit]').forEach(el => {
       el.onclick = (e) => {
