@@ -570,7 +570,7 @@ function warpImage(dataURL, cornersFrac) {
       const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
       let outW = Math.round((widthTop + widthBottom) / 2);
       let outH = Math.round((heightLeft + heightRight) / 2);
-      const maxDim = 3000; // plus haut = plus net (surtout important pour de la notation musicale)
+      const maxDim = 3600; // plus haut = plus net (surtout important pour de la notation musicale)
       if (outW > maxDim || outH > maxDim) {
         const scale = maxDim / Math.max(outW, outH);
         outW = Math.round(outW * scale);
@@ -615,6 +615,30 @@ function warpImage(dataURL, cornersFrac) {
     };
     img.src = dataURL;
   });
+}
+
+/* Accentuation des contours (unsharp mask léger) : compense le lissage
+   introduit par l'interpolation bilinéaire, redonne du "mordant" aux traits
+   fins (portées, notes) sans revenir à l'aliasing du plus proche voisin. */
+function applySharpen(canvas, amount) {
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d');
+
+  const blurCanvas = document.createElement('canvas');
+  blurCanvas.width = w; blurCanvas.height = h;
+  const bctx = blurCanvas.getContext('2d');
+  bctx.filter = 'blur(1.1px)';
+  bctx.drawImage(canvas, 0, 0);
+
+  const orig = ctx.getImageData(0, 0, w, h);
+  const blur = bctx.getImageData(0, 0, w, h);
+  const od = orig.data, bd = blur.data;
+  for (let i = 0; i < od.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      od[i + c] = Math.max(0, Math.min(255, od[i + c] + amount * (od[i + c] - bd[i + c])));
+    }
+  }
+  ctx.putImageData(orig, 0, 0);
 }
 
 /* "Mode document" : niveaux de gris + contraste renforcé, pour un rendu net comme un scanner. */
@@ -1205,6 +1229,7 @@ function capturePhoto() {
 async function validateCrop() {
   const s = state.scan;
   let canvas = await warpImage(s.rawPhoto, s.corners);
+  applySharpen(canvas, 0.55);
   if (s.documentMode) applyDocumentFilter(canvas);
   s.pages.push(canvas.toDataURL('image/jpeg', 0.94));
   s.rawPhoto = null;
