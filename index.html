@@ -133,8 +133,8 @@
   .scan-video{width:100%;aspect-ratio:3/4;border-radius:12px;background:#000;display:block;object-fit:cover;}
 
   /* scanner : recadrage */
-  .crop-stage{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;touch-action:none;line-height:0;}
-  .crop-stage img{display:block;width:100%;user-select:none;-webkit-user-drag:none;}
+  .crop-stage{position:relative;display:block;width:fit-content;max-width:100%;margin:0 auto;border-radius:12px;overflow:hidden;background:#000;touch-action:none;line-height:0;}
+  .crop-stage img{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;user-select:none;-webkit-user-drag:none;}
   .crop-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
   .crop-overlay polygon{fill:rgba(15,92,76,0.28);stroke:var(--ink-teal);stroke-width:0.6;}
   .corner-handle{
@@ -570,7 +570,7 @@ function warpImage(dataURL, cornersFrac) {
       const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
       let outW = Math.round((widthTop + widthBottom) / 2);
       let outH = Math.round((heightLeft + heightRight) / 2);
-      const maxDim = 2200; // compromis netteté / poids de fichier
+      const maxDim = 1500; // compromis netteté / poids de fichier
       if (outW > maxDim || outH > maxDim) {
         const scale = maxDim / Math.max(outW, outH);
         outW = Math.round(outW * scale);
@@ -647,10 +647,10 @@ function applyDocumentFilter(canvas) {
   const w = canvas.width, h = canvas.height;
   const imgData = ctx.getImageData(0, 0, w, h);
   const d = imgData.data;
-  const contrast = 1.35;
+  const contrast = 1.2;
   for (let i = 0; i < d.length; i += 4) {
     let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-    gray = (gray - 128) * contrast + 128 + 12;
+    gray = (gray - 128) * contrast + 128 + 34;
     gray = Math.max(0, Math.min(255, gray));
     d[i] = d[i+1] = d[i+2] = gray;
   }
@@ -1268,7 +1268,7 @@ async function validateCrop() {
   let canvas = await warpImage(s.rawPhoto, s.corners);
   applySharpen(canvas, 0.55);
   if (s.documentMode) applyDocumentFilter(canvas);
-  s.pages.push(canvas.toDataURL('image/jpeg', 0.85));
+  s.pages.push(canvas.toDataURL('image/jpeg', 0.72));
   s.rawPhoto = null;
   s.corners = null;
   s.step = 'pages';
