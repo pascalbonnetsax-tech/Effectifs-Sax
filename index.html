@@ -570,7 +570,7 @@ function warpImage(dataURL, cornersFrac) {
       const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
       let outW = Math.round((widthTop + widthBottom) / 2);
       let outH = Math.round((heightLeft + heightRight) / 2);
-      const maxDim = 2400; // plus haut = plus net (surtout important pour de la notation musicale)
+      const maxDim = 3000; // plus haut = plus net (surtout important pour de la notation musicale)
       if (outW > maxDim || outH > maxDim) {
         const scale = maxDim / Math.max(outW, outH);
         outW = Math.round(outW * scale);
@@ -1159,7 +1159,14 @@ function closeScanner() {
 
 async function startCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 4096 },
+        height: { ideal: 2160 },
+      },
+      audio: false,
+    });
     if (!state.scan) { stream.getTracks().forEach(t => t.stop()); return; } // annulé entre-temps
     state.scan.stream = stream;
     const video = document.getElementById('scanVideo');
