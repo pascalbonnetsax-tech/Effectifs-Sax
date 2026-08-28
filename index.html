@@ -1117,7 +1117,7 @@ function renderPartitionsTab() {
     <div class="month-group">
       <div class="month-title" style="display:flex;align-items:center;gap:8px;">
         ${escapeHtml(name)}
-        <button class="btn btn-sm" data-rename-oeuvre="${escapeHtml(name)}" type="button" style="font-size:10.5px;padding:2px 8px;">✎ Renommer le dossier</button>
+        <button class="btn btn-sm" data-rename-oeuvre="${escapeHtml(name)}" type="button" style="font-size:12px;padding:2px 8px;" title="Renommer le dossier">✎</button>
       </div>
       <div class="card">${withOeuvre.filter(pt => pt.oeuvre === name).map(renderPartitionRow).join('')}</div>
     </div>
@@ -1192,13 +1192,14 @@ function renderScanUI() {
         `).join('')}
       </div>
       <label class="field-label">Œuvre (dossier)</label>
-      <input type="text" id="scanOeuvreInput" list="oeuvreList" placeholder="Ex. Symphonie n°5 — Beethoven" value="${escapeHtml(s.oeuvre || '')}" style="margin-bottom:14px;">
-      <datalist id="oeuvreList">
-        ${oeuvres.map(o => `<option value="${escapeHtml(o)}">`).join('')}
-      </datalist>
+      <select id="scanOeuvreSelect" style="margin-bottom:8px;">
+        <option value="">+ Nouveau dossier</option>
+        ${oeuvres.map(o => `<option value="${escapeHtml(o)}" ${s.oeuvre === o ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('')}
+      </select>
+      <input type="text" id="scanOeuvreNewInput" placeholder="Nom du nouveau dossier" value="${escapeHtml(oeuvres.includes(s.oeuvre) ? '' : (s.oeuvre || ''))}" style="margin-bottom:14px;${oeuvres.includes(s.oeuvre) ? 'display:none;' : ''}">
       <label class="field-label">Titre de la partition</label>
       <input type="text" id="scanTitleInput" placeholder="Ex. Partie violon 1" value="${escapeHtml(s.title || '')}">
-      <p class="hint" style="margin:6px 2px 0;">Laissez le même nom d'œuvre pour regrouper plusieurs partitions dans un même dossier.</p>
+      <p class="hint" style="margin:6px 2px 0;">Choisissez un dossier existant dans la liste, ou « + Nouveau dossier » pour en créer un.</p>
       <div class="scan-actions">
         <button class="btn btn-sm" id="scanCancelBtn" type="button">Annuler</button>
         <button class="btn btn-sm" id="scanAddPageBtn" type="button">+ Ajouter une page</button>
@@ -1282,7 +1283,7 @@ function sizeCropImage() {
     if (!img.naturalWidth) return;
     const card = img.closest('.form-card');
     const availW = (card ? card.clientWidth : window.innerWidth) - 4;
-    const availH = window.innerHeight * 0.6;
+    const availH = window.innerHeight * 0.55;
     const ratio = Math.min(availW / img.naturalWidth, availH / img.naturalHeight, 1);
     img.style.width = Math.round(img.naturalWidth * ratio) + 'px';
     img.style.height = Math.round(img.naturalHeight * ratio) + 'px';
@@ -1582,8 +1583,20 @@ function attachPartitionsHandlers() {
   });
   const titleInput = document.getElementById('scanTitleInput');
   if (titleInput) titleInput.addEventListener('input', (e) => { state.scan.title = e.target.value; });
-  const oeuvreInput = document.getElementById('scanOeuvreInput');
-  if (oeuvreInput) oeuvreInput.addEventListener('input', (e) => { state.scan.oeuvre = e.target.value; });
+  const oeuvreSelect = document.getElementById('scanOeuvreSelect');
+  const oeuvreNewInput = document.getElementById('scanOeuvreNewInput');
+  if (oeuvreSelect) {
+    oeuvreSelect.onchange = () => {
+      if (oeuvreSelect.value === '') {
+        oeuvreNewInput.style.display = '';
+        state.scan.oeuvre = oeuvreNewInput.value;
+      } else {
+        oeuvreNewInput.style.display = 'none';
+        state.scan.oeuvre = oeuvreSelect.value;
+      }
+    };
+  }
+  if (oeuvreNewInput) oeuvreNewInput.addEventListener('input', (e) => { state.scan.oeuvre = e.target.value; });
   document.getElementById('scanCancelBtn').onclick = closeScanner;
   document.getElementById('scanAddPageBtn').onclick = () => {
     state.scan.step = 'camera';
