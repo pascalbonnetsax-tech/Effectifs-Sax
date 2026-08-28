@@ -537,6 +537,26 @@ function computeHomography(destPts, srcPts) {
 
 /* Redresse la zone délimitée par 4 coins (en % de l'image, ordre TL,TR,BR,BL)
    en un rectangle bien à plat, taille déduite de la géométrie du quadrilatère. */
+/* Échantillonnage bilinéaire (moyenne pondérée des 4 pixels voisins) —
+   nettement plus net que le "plus proche voisin" pour du texte/notation. */
+function sampleBilinear(srcData, W, H, sx, sy) {
+  const x0 = Math.floor(sx), y0 = Math.floor(sy);
+  const fx = sx - x0, fy = sy - y0;
+  const cx0 = Math.max(0, Math.min(W - 1, x0));
+  const cy0 = Math.max(0, Math.min(H - 1, y0));
+  const cx1 = Math.max(0, Math.min(W - 1, x0 + 1));
+  const cy1 = Math.max(0, Math.min(H - 1, y0 + 1));
+  const i00 = (cy0 * W + cx0) * 4, i10 = (cy0 * W + cx1) * 4;
+  const i01 = (cy1 * W + cx0) * 4, i11 = (cy1 * W + cx1) * 4;
+  const out = [0, 0, 0];
+  for (let c = 0; c < 3; c++) {
+    const top = srcData[i00 + c] * (1 - fx) + srcData[i10 + c] * fx;
+    const bot = srcData[i01 + c] * (1 - fx) + srcData[i11 + c] * fx;
+    out[c] = top * (1 - fy) + bot * fy;
+  }
+  return out;
+}
+
 function warpImage(dataURL, cornersFrac) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -550,7 +570,7 @@ function warpImage(dataURL, cornersFrac) {
       const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
       let outW = Math.round((widthTop + widthBottom) / 2);
       let outH = Math.round((heightLeft + heightRight) / 2);
-      const maxDim = 1600;
+      const maxDim = 2400; // plus haut = plus net (surtout important pour de la notation musicale)
       if (outW > maxDim || outH > maxDim) {
         const scale = maxDim / Math.max(outW, outH);
         outW = Math.round(outW * scale);
@@ -576,14 +596,14 @@ function warpImage(dataURL, cornersFrac) {
       for (let dy = 0; dy < outH; dy++) {
         for (let dx = 0; dx < outW; dx++) {
           const denom = coef.g * dx + coef.h * dy + 1;
-          const sx = Math.round((coef.a * dx + coef.b * dy + coef.c) / denom);
-          const sy = Math.round((coef.d * dx + coef.e * dy + coef.f) / denom);
+          const sx = (coef.a * dx + coef.b * dy + coef.c) / denom;
+          const sy = (coef.d * dx + coef.e * dy + coef.f) / denom;
           const di = (dy * outW + dx) * 4;
-          if (sx >= 0 && sx < W && sy >= 0 && sy < H) {
-            const si = (sy * W + sx) * 4;
-            outImgData.data[di] = srcData[si];
-            outImgData.data[di+1] = srcData[si+1];
-            outImgData.data[di+2] = srcData[si+2];
+          if (sx >= -1 && sx < W + 1 && sy >= -1 && sy < H + 1) {
+            const [r, g, b] = sampleBilinear(srcData, W, H, sx, sy);
+            outImgData.data[di] = r;
+            outImgData.data[di+1] = g;
+            outImgData.data[di+2] = b;
             outImgData.data[di+3] = 255;
           } else {
             outImgData.data[di] = 255; outImgData.data[di+1] = 255; outImgData.data[di+2] = 255; outImgData.data[di+3] = 255;
@@ -1179,7 +1199,7 @@ async function validateCrop() {
   const s = state.scan;
   let canvas = await warpImage(s.rawPhoto, s.corners);
   if (s.documentMode) applyDocumentFilter(canvas);
-  s.pages.push(canvas.toDataURL('image/jpeg', 0.85));
+  s.pages.push(canvas.toDataURL('image/jpeg', 0.94));
   s.rawPhoto = null;
   s.corners = null;
   s.step = 'pages';
