@@ -423,10 +423,10 @@ async function loadPartitions() {
   state.partitionsLoaded = true;
 }
 
-async function uploadPartition(title, pdfBase64) {
+async function uploadPartition(title, oeuvre, pdfBase64) {
   const res = await fetch(APPS_SCRIPT_URL + '?action=savePartition', {
     method: 'POST',
-    body: JSON.stringify({ title, pdfBase64 }),
+    body: JSON.stringify({ title, oeuvre, pdfBase64 }),
   });
   const data = await res.json();
   if (!data || !data.ok) throw new Error((data && data.error) || 'échec');
@@ -1084,26 +1084,53 @@ function renderPartitionsTab() {
     return '<div class="card empty">Chargement…</div>';
   }
 
-  const list = state.partitions.length
-    ? state.partitions.map(pt => `
-        <div class="partition-row">
-          <div>
-            <div class="partition-title">${escapeHtml(pt.title)}</div>
-            <div class="partition-date">${fmtDate(pt.date)}</div>
-          </div>
-          <div style="display:flex;gap:6px;">
-            <a class="btn btn-sm" href="${pt.url}" target="_blank" rel="noopener">Ouvrir</a>
-            <button class="btn btn-sm btn-danger" data-delete-partition="${pt.id}" type="button">Supprimer</button>
-          </div>
+  function renderPartitionRow(pt) {
+    return `
+      <div class="partition-row">
+        <div>
+          <div class="partition-title">${escapeHtml(pt.title)}</div>
+          <div class="partition-date">${fmtDate(pt.date)}</div>
         </div>
-      `).join('')
-    : `<div class="eff-row"><span class="hint">Aucune partition scannée pour l\u2019instant.</span></div>`;
+        <div style="display:flex;gap:6px;">
+          <a class="btn btn-sm" href="${pt.url}" target="_blank" rel="noopener">Ouvrir</a>
+          <button class="btn btn-sm btn-danger" data-delete-partition="${pt.id}" type="button">Supprimer</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (!state.partitions.length) {
+    return `
+      <div style="margin-bottom:18px;">
+        <button class="btn btn-sm btn-primary" id="startScanBtn" type="button">📷 Scanner une partition</button>
+      </div>
+      <div class="card"><div class="eff-row"><span class="hint">Aucune partition scannée pour l\u2019instant.</span></div></div>
+    `;
+  }
+
+  const withOeuvre = state.partitions.filter(pt => pt.oeuvre);
+  const withoutOeuvre = state.partitions.filter(pt => !pt.oeuvre);
+  const oeuvres = [...new Set(withOeuvre.map(pt => pt.oeuvre))].sort((a, b) => a.localeCompare(b));
+
+  const groups = oeuvres.map(name => `
+    <div class="month-group">
+      <div class="month-title">${escapeHtml(name)}</div>
+      <div class="card">${withOeuvre.filter(pt => pt.oeuvre === name).map(renderPartitionRow).join('')}</div>
+    </div>
+  `).join('');
+
+  const ungrouped = withoutOeuvre.length ? `
+    <div class="month-group">
+      <div class="month-title">Sans dossier</div>
+      <div class="card">${withoutOeuvre.map(renderPartitionRow).join('')}</div>
+    </div>
+  ` : '';
 
   return `
     <div style="margin-bottom:18px;">
       <button class="btn btn-sm btn-primary" id="startScanBtn" type="button">📷 Scanner une partition</button>
     </div>
-    <div class="card">${list}</div>
+    ${groups}${ungrouped}
   `;
 }
 
@@ -1148,6 +1175,7 @@ function renderScanUI() {
   }
 
   // s.step === 'pages'
+  const oeuvres = [...new Set(state.partitions.map(p => p.oeuvre).filter(Boolean))].sort();
   return `
     <div class="card form-card">
       <label class="field-label">Pages scannées (${s.pages.length})</label>
@@ -1159,8 +1187,14 @@ function renderScanUI() {
           </div>
         `).join('')}
       </div>
+      <label class="field-label">Œuvre (dossier)</label>
+      <input type="text" id="scanOeuvreInput" list="oeuvreList" placeholder="Ex. Symphonie n°5 — Beethoven" value="${escapeHtml(s.oeuvre || '')}" style="margin-bottom:14px;">
+      <datalist id="oeuvreList">
+        ${oeuvres.map(o => `<option value="${escapeHtml(o)}">`).join('')}
+      </datalist>
       <label class="field-label">Titre de la partition</label>
-      <input type="text" id="scanTitleInput" placeholder="Ex. Symphonie n°5 — Beethoven" value="${escapeHtml(s.title || '')}">
+      <input type="text" id="scanTitleInput" placeholder="Ex. Partie violon 1" value="${escapeHtml(s.title || '')}">
+      <p class="hint" style="margin:6px 2px 0;">Laissez le même nom d'œuvre pour regrouper plusieurs partitions dans un même dossier.</p>
       <div class="scan-actions">
         <button class="btn btn-sm" id="scanCancelBtn" type="button">Annuler</button>
         <button class="btn btn-sm" id="scanAddPageBtn" type="button">+ Ajouter une page</button>
@@ -1171,7 +1205,7 @@ function renderScanUI() {
 }
 
 function openScanner() {
-  state.scan = { step: 'camera', pages: [], rawPhoto: null, corners: null, documentMode: true, title: '', uploading: false, stream: null };
+  state.scan = { step: 'camera', pages: [], rawPhoto: null, corners: null, documentMode: true, title: '', oeuvre: '', uploading: false, stream: null };
   renderTabContent();
 }
 
@@ -1285,7 +1319,7 @@ async function finishScan() {
   try {
     const pdfDataUri = await buildPdfFromPages(s.pages);
     const base64 = pdfDataUri.split(',')[1];
-    await uploadPartition(s.title, base64);
+    await uploadPartition(s.title, s.oeuvre, base64);
     state.scan = null;
     state.partitionsLoaded = false;
     await loadPartitions();
@@ -1491,6 +1525,8 @@ function attachPartitionsHandlers() {
   });
   const titleInput = document.getElementById('scanTitleInput');
   if (titleInput) titleInput.addEventListener('input', (e) => { state.scan.title = e.target.value; });
+  const oeuvreInput = document.getElementById('scanOeuvreInput');
+  if (oeuvreInput) oeuvreInput.addEventListener('input', (e) => { state.scan.oeuvre = e.target.value; });
   document.getElementById('scanCancelBtn').onclick = closeScanner;
   document.getElementById('scanAddPageBtn').onclick = () => {
     state.scan.step = 'camera';
