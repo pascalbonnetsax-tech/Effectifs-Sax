@@ -130,7 +130,7 @@
   .partition-date{font-size:11.5px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
 
   /* scanner : caméra */
-  .scan-video{width:100%;border-radius:12px;background:#000;display:block;max-height:70vh;object-fit:contain;}
+  .scan-video{width:100%;aspect-ratio:3/4;border-radius:12px;background:#000;display:block;object-fit:cover;}
 
   /* scanner : recadrage */
   .crop-stage{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;touch-action:none;line-height:0;}
@@ -570,7 +570,7 @@ function warpImage(dataURL, cornersFrac) {
       const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
       let outW = Math.round((widthTop + widthBottom) / 2);
       let outH = Math.round((heightLeft + heightRight) / 2);
-      const maxDim = 3600; // plus haut = plus net (surtout important pour de la notation musicale)
+      const maxDim = 2200; // compromis netteté / poids de fichier
       if (outW > maxDim || outH > maxDim) {
         const scale = maxDim / Math.max(outW, outH);
         outW = Math.round(outW * scale);
@@ -1268,7 +1268,7 @@ async function validateCrop() {
   let canvas = await warpImage(s.rawPhoto, s.corners);
   applySharpen(canvas, 0.55);
   if (s.documentMode) applyDocumentFilter(canvas);
-  s.pages.push(canvas.toDataURL('image/jpeg', 0.94));
+  s.pages.push(canvas.toDataURL('image/jpeg', 0.85));
   s.rawPhoto = null;
   s.corners = null;
   s.step = 'pages';
