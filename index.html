@@ -1093,6 +1093,7 @@ function renderPartitionsTab() {
         </div>
         <div style="display:flex;gap:6px;">
           <a class="btn btn-sm" href="${pt.url}" target="_blank" rel="noopener">Ouvrir</a>
+          <button class="btn btn-sm" data-rename-partition="${pt.id}" type="button">✎</button>
           <button class="btn btn-sm btn-danger" data-delete-partition="${pt.id}" type="button">Supprimer</button>
         </div>
       </div>
@@ -1114,7 +1115,10 @@ function renderPartitionsTab() {
 
   const groups = oeuvres.map(name => `
     <div class="month-group">
-      <div class="month-title">${escapeHtml(name)}</div>
+      <div class="month-title" style="display:flex;align-items:center;gap:8px;">
+        ${escapeHtml(name)}
+        <button class="btn btn-sm" data-rename-oeuvre="${escapeHtml(name)}" type="button" style="font-size:10.5px;padding:2px 8px;">✎ Renommer le dossier</button>
+      </div>
       <div class="card">${withOeuvre.filter(pt => pt.oeuvre === name).map(renderPartitionRow).join('')}</div>
     </div>
   `).join('');
@@ -1490,6 +1494,43 @@ function attachPartitionsHandlers() {
           alert('La suppression a échoué — vérifiez votre connexion et réessayez.');
           btn.disabled = false;
           btn.textContent = 'Supprimer';
+        }
+      };
+    });
+    document.querySelectorAll('[data-rename-partition]').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.renamePartition;
+        const current = state.partitions.find(p => p.id === id);
+        const newTitle = prompt('Nouveau titre de la partition :', current ? current.title : '');
+        if (!newTitle || !newTitle.trim() || newTitle.trim() === (current && current.title)) return;
+        const trimmed = newTitle.trim();
+        btn.disabled = true;
+        try {
+          await fetch(APPS_SCRIPT_URL + '?action=renamePartition&id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(trimmed), { method: 'GET' });
+          if (current) current.title = trimmed;
+          renderTabContent();
+        } catch (e) {
+          console.error('Erreur de renommage', e);
+          alert('Le renommage a échoué — vérifiez votre connexion et réessayez.');
+          btn.disabled = false;
+        }
+      };
+    });
+    document.querySelectorAll('[data-rename-oeuvre]').forEach(btn => {
+      btn.onclick = async () => {
+        const oldName = btn.dataset.renameOeuvre;
+        const newName = prompt('Nouveau nom du dossier :', oldName);
+        if (!newName || !newName.trim() || newName.trim() === oldName) return;
+        const trimmed = newName.trim();
+        btn.disabled = true;
+        try {
+          await fetch(APPS_SCRIPT_URL + '?action=renameOeuvre&oldName=' + encodeURIComponent(oldName) + '&newName=' + encodeURIComponent(trimmed), { method: 'GET' });
+          state.partitions.forEach(p => { if (p.oeuvre === oldName) p.oeuvre = trimmed; });
+          renderTabContent();
+        } catch (e) {
+          console.error('Erreur de renommage du dossier', e);
+          alert('Le renommage a échoué — vérifiez votre connexion et réessayez.');
+          btn.disabled = false;
         }
       };
     });
