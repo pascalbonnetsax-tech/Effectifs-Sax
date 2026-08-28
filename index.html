@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --paper:#faf9f5;
@@ -121,6 +122,37 @@
   .badge-concert{background:var(--surface-sunk);color:var(--ink-soft);border:0.5px solid var(--line-strong);}
   .badge-ceremonie{background:transparent;color:var(--ink-soft);border:0.5px solid var(--ink-soft);}
   .tick-done{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--ink-teal-soft);color:var(--ink-teal);font-size:10px;font-weight:700;}
+
+  /* onglet Partitions */
+  .partition-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:0.5px solid var(--line);}
+  .partition-row:last-child{border-bottom:none;}
+  .partition-title{font-size:13.5px;font-weight:500;}
+  .partition-date{font-size:11.5px;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+
+  /* scanner : caméra */
+  .scan-video{width:100%;border-radius:12px;background:#000;display:block;max-height:70vh;object-fit:contain;}
+
+  /* scanner : recadrage */
+  .crop-stage{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;touch-action:none;line-height:0;}
+  .crop-stage img{display:block;width:100%;user-select:none;-webkit-user-drag:none;}
+  .crop-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .crop-overlay polygon{fill:rgba(15,92,76,0.28);stroke:var(--ink-teal);stroke-width:0.6;}
+  .corner-handle{
+    position:absolute;width:28px;height:28px;margin-left:-14px;margin-top:-14px;border-radius:50%;
+    background:var(--ink-teal);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);
+    touch-action:none;cursor:grab;
+  }
+
+  /* scanner : pages */
+  .page-thumbs{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}
+  .page-thumb{position:relative;width:86px;}
+  .page-thumb img{width:100%;border-radius:6px;border:0.5px solid var(--line-strong);display:block;}
+  .page-thumb .del{
+    position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;
+    background:var(--red);color:#fff;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;border:2px solid var(--surface);
+  }
+  .scan-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
 
   /* planning */
   .month-group{margin-bottom:26px;}
@@ -314,13 +346,16 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-E5oydsLmyNIQ
 /* ===== State ===== */
 let state = {
   events: [],
-  tab: 'effectifs',       // 'effectifs' | 'planning' | 'equilibrage'
+  tab: 'effectifs',       // 'effectifs' | 'planning' | 'equilibrage' | 'partitions'
   editingId: null,        // null | 'new' | eventId
   editContext: 'planning', // 'effectifs' | 'planning' — onglet où fermer la fiche
   prefillDate: null,
   connected: false,
   syncError: false,
   monthsAhead: 2, // nombre de mois futurs sans mission encore visibles dans Planning
+  partitions: [],
+  partitionsLoaded: false,
+  scan: null, // objet de session de scan en cours (voir openScanner())
 };
 
 function isConfigured() {
@@ -373,6 +408,29 @@ async function persist() {
     console.error('Erreur de sauvegarde', e);
     state.syncError = true;
   }
+}
+
+/* ===== Partitions (stockées sur Google Drive, liste dans un onglet séparé du Sheet) ===== */
+async function loadPartitions() {
+  if (!isConfigured()) { state.partitionsLoaded = true; return; }
+  try {
+    const res = await fetch(APPS_SCRIPT_URL + '?action=partitions', { method: 'GET' });
+    const data = await res.json();
+    if (Array.isArray(data)) state.partitions = data;
+  } catch (e) {
+    console.error('Erreur de chargement des partitions', e);
+  }
+  state.partitionsLoaded = true;
+}
+
+async function uploadPartition(title, pdfBase64) {
+  const res = await fetch(APPS_SCRIPT_URL + '?action=savePartition', {
+    method: 'POST',
+    body: JSON.stringify({ title, pdfBase64 }),
+  });
+  const data = await res.json();
+  if (!data || !data.ok) throw new Error((data && data.error) || 'échec');
+  return data;
 }
 
 /* ===== Migrations ponctuelles ===== */
@@ -434,6 +492,144 @@ function uid() {
 }
 function escapeHtml(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ===== Traitement d'image pour le scanner de partitions ===== */
+
+/* Résout un système linéaire A·x = B par élimination de Gauss (pivot partiel). */
+function solveLinearSystem(A, B) {
+  const n = A.length;
+  const M = A.map((row, i) => [...row, B[i]]);
+  for (let col = 0; col < n; col++) {
+    let maxRow = col;
+    for (let r = col + 1; r < n; r++) {
+      if (Math.abs(M[r][col]) > Math.abs(M[maxRow][col])) maxRow = r;
+    }
+    [M[col], M[maxRow]] = [M[maxRow], M[col]];
+    const pivot = M[col][col];
+    if (Math.abs(pivot) < 1e-12) continue;
+    for (let c = col; c <= n; c++) M[col][c] /= pivot;
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const factor = M[r][col];
+      for (let c = col; c <= n; c++) M[r][c] -= factor * M[col][c];
+    }
+  }
+  return M.map(row => row[n]);
+}
+
+/* Calcule la transformation projective qui envoie les points destPts vers
+   les points srcPts (utilisé en sens inverse pour ré-échantillonner). */
+function computeHomography(destPts, srcPts) {
+  const A = [];
+  const B = [];
+  for (let i = 0; i < 4; i++) {
+    const { x, y } = destPts[i];
+    const { x: X, y: Y } = srcPts[i];
+    A.push([x, y, 1, 0, 0, 0, -x * X, -y * X]);
+    B.push(X);
+    A.push([0, 0, 0, x, y, 1, -x * Y, -y * Y]);
+    B.push(Y);
+  }
+  const sol = solveLinearSystem(A, B);
+  return { a: sol[0], b: sol[1], c: sol[2], d: sol[3], e: sol[4], f: sol[5], g: sol[6], h: sol[7] };
+}
+
+/* Redresse la zone délimitée par 4 coins (en % de l'image, ordre TL,TR,BR,BL)
+   en un rectangle bien à plat, taille déduite de la géométrie du quadrilatère. */
+function warpImage(dataURL, cornersFrac) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      const src = cornersFrac.map(c => ({ x: c.x / 100 * W, y: c.y / 100 * H }));
+
+      const widthTop = Math.hypot(src[1].x - src[0].x, src[1].y - src[0].y);
+      const widthBottom = Math.hypot(src[2].x - src[3].x, src[2].y - src[3].y);
+      const heightLeft = Math.hypot(src[3].x - src[0].x, src[3].y - src[0].y);
+      const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
+      let outW = Math.round((widthTop + widthBottom) / 2);
+      let outH = Math.round((heightLeft + heightRight) / 2);
+      const maxDim = 1600;
+      if (outW > maxDim || outH > maxDim) {
+        const scale = maxDim / Math.max(outW, outH);
+        outW = Math.round(outW * scale);
+        outH = Math.round(outH * scale);
+      }
+      outW = Math.max(outW, 200);
+      outH = Math.max(outH, 200);
+
+      const dest = [{x:0,y:0},{x:outW,y:0},{x:outW,y:outH},{x:0,y:outH}];
+      const coef = computeHomography(dest, src);
+
+      const srcCanvas = document.createElement('canvas');
+      srcCanvas.width = W; srcCanvas.height = H;
+      const sctx = srcCanvas.getContext('2d');
+      sctx.drawImage(img, 0, 0);
+      const srcData = sctx.getImageData(0, 0, W, H).data;
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = outW; outCanvas.height = outH;
+      const octx = outCanvas.getContext('2d');
+      const outImgData = octx.createImageData(outW, outH);
+
+      for (let dy = 0; dy < outH; dy++) {
+        for (let dx = 0; dx < outW; dx++) {
+          const denom = coef.g * dx + coef.h * dy + 1;
+          const sx = Math.round((coef.a * dx + coef.b * dy + coef.c) / denom);
+          const sy = Math.round((coef.d * dx + coef.e * dy + coef.f) / denom);
+          const di = (dy * outW + dx) * 4;
+          if (sx >= 0 && sx < W && sy >= 0 && sy < H) {
+            const si = (sy * W + sx) * 4;
+            outImgData.data[di] = srcData[si];
+            outImgData.data[di+1] = srcData[si+1];
+            outImgData.data[di+2] = srcData[si+2];
+            outImgData.data[di+3] = 255;
+          } else {
+            outImgData.data[di] = 255; outImgData.data[di+1] = 255; outImgData.data[di+2] = 255; outImgData.data[di+3] = 255;
+          }
+        }
+      }
+      octx.putImageData(outImgData, 0, 0);
+      resolve(outCanvas);
+    };
+    img.src = dataURL;
+  });
+}
+
+/* "Mode document" : niveaux de gris + contraste renforcé, pour un rendu net comme un scanner. */
+function applyDocumentFilter(canvas) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+  const contrast = 1.35;
+  for (let i = 0; i < d.length; i += 4) {
+    let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+    gray = (gray - 128) * contrast + 128 + 12;
+    gray = Math.max(0, Math.min(255, gray));
+    d[i] = d[i+1] = d[i+2] = gray;
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+/* Assemble plusieurs images (une par page) en un seul PDF, renvoyé en data URI base64. */
+async function buildPdfFromPages(pages) {
+  const { jsPDF } = window.jspdf;
+  let pdf = null;
+  for (let i = 0; i < pages.length; i++) {
+    const img = new Image();
+    await new Promise(res => { img.onload = res; img.src = pages[i]; });
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const orientation = w > h ? 'l' : 'p';
+    if (!pdf) {
+      pdf = new jsPDF({ orientation, unit: 'px', format: [w, h] });
+    } else {
+      pdf.addPage([w, h], orientation);
+    }
+    pdf.addImage(pages[i], 'JPEG', 0, 0, w, h);
+  }
+  return pdf.output('datauristring');
 }
 
 /* ===== Calculs d'équilibrage =====
@@ -556,6 +752,7 @@ function renderTabs() {
     ['effectifs', 'Effectifs'],
     ['planning', 'Planning/Dispos'],
     ['equilibrage', 'Tours'],
+    ['partitions', 'Partitions'],
   ];
   return `
     <div class="tabs">
@@ -570,6 +767,7 @@ function renderTabContent() {
   const el = document.getElementById('tab-content');
   if (state.tab === 'effectifs') el.innerHTML = renderEffectifsTab();
   else if (state.tab === 'planning') el.innerHTML = renderPlanningTab();
+  else if (state.tab === 'partitions') el.innerHTML = renderPartitionsTab();
   else el.innerHTML = renderEquilibrage();
   attachTabHandlers();
 }
@@ -831,6 +1029,220 @@ function renderForm(ev) {
 }
 
 /* ===== Tours ===== */
+/* ===== Onglet Partitions ===== */
+function renderPartitionsTab() {
+  if (state.scan) return renderScanUI();
+
+  if (!state.partitionsLoaded) {
+    loadPartitions().then(() => {
+      if (state.tab === 'partitions' && !state.scan) renderTabContent();
+    });
+    return '<div class="card empty">Chargement…</div>';
+  }
+
+  const list = state.partitions.length
+    ? state.partitions.map(pt => `
+        <div class="partition-row">
+          <div>
+            <div class="partition-title">${escapeHtml(pt.title)}</div>
+            <div class="partition-date">${fmtDate(pt.date)}</div>
+          </div>
+          <a class="btn btn-sm" href="${pt.url}" target="_blank" rel="noopener">Ouvrir</a>
+        </div>
+      `).join('')
+    : `<div class="eff-row"><span class="hint">Aucune partition scannée pour l\u2019instant.</span></div>`;
+
+  return `
+    <div style="margin-bottom:18px;">
+      <button class="btn btn-sm btn-primary" id="startScanBtn" type="button">📷 Scanner une partition</button>
+    </div>
+    <div class="card">${list}</div>
+  `;
+}
+
+function renderScanUI() {
+  const s = state.scan;
+
+  if (s.step === 'camera') {
+    return `
+      <div class="card form-card">
+        <label class="field-label">Nouvelle page — cadrez la partition</label>
+        <video id="scanVideo" class="scan-video" autoplay playsinline muted></video>
+        <div class="scan-actions">
+          <button class="btn btn-sm" id="scanCancelBtn" type="button">Annuler</button>
+          <button class="btn btn-sm btn-primary" id="scanCaptureBtn" type="button">Capturer</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (s.step === 'crop') {
+    const pts = s.corners.map(c => `${c.x},${c.y}`).join(' ');
+    return `
+      <div class="card form-card">
+        <label class="field-label">Ajustez les 4 coins sur les bords de la partition</label>
+        <div class="crop-stage" id="cropStage">
+          <img id="cropImg" src="${s.rawPhoto}" draggable="false">
+          <svg class="crop-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon id="cropPoly" points="${pts}"></polygon>
+          </svg>
+          ${s.corners.map((c, i) => `<div class="corner-handle" data-idx="${i}" style="left:${c.x}%;top:${c.y}%;"></div>`).join('')}
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-top:12px;cursor:pointer;">
+          <input type="checkbox" id="docModeCheck" ${s.documentMode ? 'checked' : ''}>
+          Mode document (contraste renforcé)
+        </label>
+        <div class="scan-actions">
+          <button class="btn btn-sm" id="scanRetakeBtn" type="button">Reprendre la photo</button>
+          <button class="btn btn-sm btn-primary" id="scanValidateCropBtn" type="button">Valider cette page</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // s.step === 'pages'
+  return `
+    <div class="card form-card">
+      <label class="field-label">Pages scannées (${s.pages.length})</label>
+      <div class="page-thumbs">
+        ${s.pages.map((p, i) => `
+          <div class="page-thumb">
+            <img src="${p}">
+            <div class="del" data-idx="${i}">×</div>
+          </div>
+        `).join('')}
+      </div>
+      <label class="field-label">Titre de la partition</label>
+      <input type="text" id="scanTitleInput" placeholder="Ex. Symphonie n°5 — Beethoven" value="${escapeHtml(s.title || '')}">
+      <div class="scan-actions">
+        <button class="btn btn-sm" id="scanCancelBtn" type="button">Annuler</button>
+        <button class="btn btn-sm" id="scanAddPageBtn" type="button">+ Ajouter une page</button>
+        <button class="btn btn-sm btn-primary" id="scanFinishBtn" type="button" ${s.uploading ? 'disabled' : ''}>${s.uploading ? 'Envoi…' : 'Terminer et enregistrer'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function openScanner() {
+  state.scan = { step: 'camera', pages: [], rawPhoto: null, corners: null, documentMode: true, title: '', uploading: false, stream: null };
+  renderTabContent();
+}
+
+function closeScanner() {
+  stopCamera();
+  state.scan = null;
+  renderTabContent();
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    if (!state.scan) { stream.getTracks().forEach(t => t.stop()); return; } // annulé entre-temps
+    state.scan.stream = stream;
+    const video = document.getElementById('scanVideo');
+    if (video) {
+      video.srcObject = stream;
+      await video.play();
+    }
+  } catch (e) {
+    console.error('Erreur caméra', e);
+    alert('Impossible d\u2019accéder à la caméra : ' + e.message);
+  }
+}
+
+function stopCamera() {
+  if (state.scan && state.scan.stream) {
+    state.scan.stream.getTracks().forEach(t => t.stop());
+    state.scan.stream = null;
+  }
+}
+
+function capturePhoto() {
+  const video = document.getElementById('scanVideo');
+  if (!video || !video.videoWidth) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const dataURL = canvas.toDataURL('image/jpeg', 0.92);
+  stopCamera();
+  state.scan.rawPhoto = dataURL;
+  state.scan.corners = [{x:10,y:10},{x:90,y:10},{x:90,y:90},{x:10,y:90}];
+  state.scan.step = 'crop';
+  renderTabContent();
+}
+
+async function validateCrop() {
+  const s = state.scan;
+  let canvas = await warpImage(s.rawPhoto, s.corners);
+  if (s.documentMode) applyDocumentFilter(canvas);
+  s.pages.push(canvas.toDataURL('image/jpeg', 0.85));
+  s.rawPhoto = null;
+  s.corners = null;
+  s.step = 'pages';
+  renderTabContent();
+}
+
+function attachCropHandlers() {
+  const stage = document.getElementById('cropStage');
+  if (!stage) return;
+  let draggingIdx = null;
+
+  function updateOverlay() {
+    const poly = document.getElementById('cropPoly');
+    if (poly) poly.setAttribute('points', state.scan.corners.map(c => `${c.x},${c.y}`).join(' '));
+    document.querySelectorAll('.corner-handle').forEach(h => {
+      const idx = parseInt(h.dataset.idx, 10);
+      h.style.left = state.scan.corners[idx].x + '%';
+      h.style.top = state.scan.corners[idx].y + '%';
+    });
+  }
+
+  function pointFromEvent(e) {
+    const rect = stage.getBoundingClientRect();
+    let x = (e.clientX - rect.left) / rect.width * 100;
+    let y = (e.clientY - rect.top) / rect.height * 100;
+    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+  }
+
+  document.querySelectorAll('.corner-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      draggingIdx = parseInt(handle.dataset.idx, 10);
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (draggingIdx === null) return;
+      state.scan.corners[draggingIdx] = pointFromEvent(e);
+      updateOverlay();
+    });
+    handle.addEventListener('pointerup', () => { draggingIdx = null; });
+    handle.addEventListener('pointercancel', () => { draggingIdx = null; });
+  });
+}
+
+async function finishScan() {
+  const s = state.scan;
+  if (!s.pages.length) { alert('Ajoutez au moins une page avant de terminer.'); return; }
+  s.title = (s.title || '').trim() || 'Partition sans titre';
+  s.uploading = true;
+  renderTabContent();
+  try {
+    const pdfDataUri = await buildPdfFromPages(s.pages);
+    const base64 = pdfDataUri.split(',')[1];
+    await uploadPartition(s.title, base64);
+    state.scan = null;
+    state.partitionsLoaded = false;
+    await loadPartitions();
+    render();
+  } catch (e) {
+    console.error('Erreur d\u2019envoi de la partition', e);
+    alert('L\u2019envoi a échoué — vérifiez votre connexion et réessayez.');
+    s.uploading = false;
+    renderTabContent();
+  }
+}
+
 function renderEquilibrage() {
   const rel = computeXBalances();
   const maxX = Math.max(4, ...PEOPLE.flatMap(p => [rel[p].concert, rel[p].ceremonie]));
@@ -895,6 +1307,7 @@ function attachGlobalHandlers() {
       state.tab = target;
       state.editingId = null;
       state.prefillDate = null;
+      if (state.scan) { stopCamera(); state.scan = null; }
       renderTabContent();
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -965,7 +1378,52 @@ function attachTabHandlers() {
       };
     });
   }
+  if (state.tab === 'partitions') attachPartitionsHandlers();
   if (state.editingId) attachFormHandlers();
+}
+
+function attachPartitionsHandlers() {
+  if (!state.scan) {
+    const startBtn = document.getElementById('startScanBtn');
+    if (startBtn) startBtn.onclick = openScanner;
+    return;
+  }
+
+  if (state.scan.step === 'camera') {
+    startCamera();
+    document.getElementById('scanCancelBtn').onclick = closeScanner;
+    document.getElementById('scanCaptureBtn').onclick = capturePhoto;
+    return;
+  }
+
+  if (state.scan.step === 'crop') {
+    attachCropHandlers();
+    document.getElementById('docModeCheck').onchange = (e) => { state.scan.documentMode = e.target.checked; };
+    document.getElementById('scanRetakeBtn').onclick = () => {
+      state.scan.step = 'camera';
+      state.scan.rawPhoto = null;
+      state.scan.corners = null;
+      renderTabContent();
+    };
+    document.getElementById('scanValidateCropBtn').onclick = validateCrop;
+    return;
+  }
+
+  // step === 'pages'
+  document.querySelectorAll('.page-thumb .del').forEach(btn => {
+    btn.onclick = () => {
+      state.scan.pages.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderTabContent();
+    };
+  });
+  const titleInput = document.getElementById('scanTitleInput');
+  if (titleInput) titleInput.addEventListener('input', (e) => { state.scan.title = e.target.value; });
+  document.getElementById('scanCancelBtn').onclick = closeScanner;
+  document.getElementById('scanAddPageBtn').onclick = () => {
+    state.scan.step = 'camera';
+    renderTabContent();
+  };
+  document.getElementById('scanFinishBtn').onclick = finishScan;
 }
 
 function attachFormHandlers() {
