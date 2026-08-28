@@ -1047,7 +1047,10 @@ function renderPartitionsTab() {
             <div class="partition-title">${escapeHtml(pt.title)}</div>
             <div class="partition-date">${fmtDate(pt.date)}</div>
           </div>
-          <a class="btn btn-sm" href="${pt.url}" target="_blank" rel="noopener">Ouvrir</a>
+          <div style="display:flex;gap:6px;">
+            <a class="btn btn-sm" href="${pt.url}" target="_blank" rel="noopener">Ouvrir</a>
+            <button class="btn btn-sm btn-danger" data-delete-partition="${pt.id}" type="button">Supprimer</button>
+          </div>
         </div>
       `).join('')
     : `<div class="eff-row"><span class="hint">Aucune partition scannée pour l\u2019instant.</span></div>`;
@@ -1386,6 +1389,24 @@ function attachPartitionsHandlers() {
   if (!state.scan) {
     const startBtn = document.getElementById('startScanBtn');
     if (startBtn) startBtn.onclick = openScanner;
+    document.querySelectorAll('[data-delete-partition]').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Supprimer définitivement cette partition (fichier compris sur le Drive) ?')) return;
+        const id = btn.dataset.deletePartition;
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          await fetch(APPS_SCRIPT_URL + '?action=deletePartition&id=' + encodeURIComponent(id), { method: 'GET' });
+          state.partitions = state.partitions.filter(p => p.id !== id);
+          renderTabContent();
+        } catch (e) {
+          console.error('Erreur de suppression', e);
+          alert('La suppression a échoué — vérifiez votre connexion et réessayez.');
+          btn.disabled = false;
+          btn.textContent = 'Supprimer';
+        }
+      };
+    });
     return;
   }
 
