@@ -134,7 +134,7 @@
 
   /* scanner : recadrage */
   .crop-stage{position:relative;display:block;width:fit-content;max-width:100%;margin:0 auto;border-radius:12px;overflow:hidden;background:#000;touch-action:none;line-height:0;}
-  .crop-stage img{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;user-select:none;-webkit-user-drag:none;}
+  .crop-stage img{display:block;max-width:100%;user-select:none;-webkit-user-drag:none;}
   .crop-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
   .crop-overlay polygon{fill:rgba(15,92,76,0.28);stroke:var(--ink-teal);stroke-width:0.6;}
   .corner-handle{
@@ -570,7 +570,7 @@ function warpImage(dataURL, cornersFrac) {
       const heightRight = Math.hypot(src[2].x - src[1].x, src[2].y - src[1].y);
       let outW = Math.round((widthTop + widthBottom) / 2);
       let outH = Math.round((heightLeft + heightRight) / 2);
-      const maxDim = 1500; // compromis netteté / poids de fichier
+      const maxDim = 1100; // compromis netteté / poids de fichier — en cours de calibrage
       if (outW > maxDim || outH > maxDim) {
         const scale = maxDim / Math.max(outW, outH);
         outW = Math.round(outW * scale);
@@ -1268,16 +1268,33 @@ async function validateCrop() {
   let canvas = await warpImage(s.rawPhoto, s.corners);
   applySharpen(canvas, 0.55);
   if (s.documentMode) applyDocumentFilter(canvas);
-  s.pages.push(canvas.toDataURL('image/jpeg', 0.72));
+  s.pages.push(canvas.toDataURL('image/jpeg', 0.6));
   s.rawPhoto = null;
   s.corners = null;
   s.step = 'pages';
   renderTabContent();
 }
 
+function sizeCropImage() {
+  const img = document.getElementById('cropImg');
+  if (!img) return;
+  function apply() {
+    if (!img.naturalWidth) return;
+    const card = img.closest('.form-card');
+    const availW = (card ? card.clientWidth : window.innerWidth) - 4;
+    const availH = window.innerHeight * 0.6;
+    const ratio = Math.min(availW / img.naturalWidth, availH / img.naturalHeight, 1);
+    img.style.width = Math.round(img.naturalWidth * ratio) + 'px';
+    img.style.height = Math.round(img.naturalHeight * ratio) + 'px';
+  }
+  if (img.complete && img.naturalWidth) apply();
+  else img.onload = apply;
+}
+
 function attachCropHandlers() {
   const stage = document.getElementById('cropStage');
   if (!stage) return;
+  sizeCropImage();
   let draggingIdx = null;
 
   function updateOverlay() {
