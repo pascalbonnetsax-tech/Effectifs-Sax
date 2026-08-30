@@ -142,6 +142,10 @@
     background:var(--ink-teal);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);
     touch-action:none;cursor:grab;
   }
+  .crop-magnifier{
+    position:fixed;width:120px;height:120px;border-radius:50%;border:3px solid #fff;
+    box-shadow:0 2px 12px rgba(0,0,0,0.5);overflow:hidden;pointer-events:none;z-index:80;display:none;
+  }
 
   /* scanner : pages */
   .page-thumbs{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}
@@ -1166,6 +1170,7 @@ function renderScanUI() {
           </svg>
           ${s.corners.map((c, i) => `<div class="corner-handle" data-idx="${i}" style="left:${c.x}%;top:${c.y}%;"></div>`).join('')}
         </div>
+        <div class="crop-magnifier" id="cropMagnifier"><canvas id="magCanvas" width="120" height="120"></canvas></div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-top:12px;cursor:pointer;">
           <input type="checkbox" id="docModeCheck" ${s.documentMode ? 'checked' : ''}>
           Mode document (contraste renforcé)
@@ -1292,11 +1297,16 @@ function sizeCropImage() {
   else img.onload = apply;
 }
 
+let magImg = null; // image chargée en mémoire pour dessiner le zoom de la loupe
+
 function attachCropHandlers() {
   const stage = document.getElementById('cropStage');
   if (!stage) return;
   sizeCropImage();
   let draggingIdx = null;
+
+  magImg = new Image();
+  magImg.src = state.scan.rawPhoto;
 
   function updateOverlay() {
     const poly = document.getElementById('cropPoly');
@@ -1315,19 +1325,55 @@ function attachCropHandlers() {
     return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
   }
 
+  function updateMagnifier(clientX, clientY, pt) {
+    const mag = document.getElementById('cropMagnifier');
+    const canvas = document.getElementById('magCanvas');
+    if (!mag || !canvas || !magImg || !magImg.naturalWidth) return;
+    const ctx = canvas.getContext('2d');
+    const size = canvas.width;
+    const zoom = 3.5;
+    const srcSize = size / zoom;
+    const srcX = pt.x / 100 * magImg.naturalWidth - srcSize / 2;
+    const srcY = pt.y / 100 * magImg.naturalHeight - srcSize / 2;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(magImg, srcX, srcY, srcSize, srcSize, 0, 0, size, size);
+    ctx.strokeStyle = 'rgba(15,92,76,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(size/2 - 10, size/2); ctx.lineTo(size/2 + 10, size/2);
+    ctx.moveTo(size/2, size/2 - 10); ctx.lineTo(size/2, size/2 + 10);
+    ctx.stroke();
+
+    let left = clientX - size / 2;
+    let top = clientY - size - 30;
+    if (top < 10) top = clientY + 30; // trop haut à l'écran : on affiche sous le doigt
+    left = Math.max(6, Math.min(window.innerWidth - size - 6, left));
+    mag.style.left = left + 'px';
+    mag.style.top = top + 'px';
+    mag.style.display = 'block';
+  }
+
+  function hideMagnifier() {
+    const mag = document.getElementById('cropMagnifier');
+    if (mag) mag.style.display = 'none';
+  }
+
   document.querySelectorAll('.corner-handle').forEach(handle => {
     handle.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       draggingIdx = parseInt(handle.dataset.idx, 10);
       handle.setPointerCapture(e.pointerId);
+      updateMagnifier(e.clientX, e.clientY, state.scan.corners[draggingIdx]);
     });
     handle.addEventListener('pointermove', (e) => {
       if (draggingIdx === null) return;
-      state.scan.corners[draggingIdx] = pointFromEvent(e);
+      const pt = pointFromEvent(e);
+      state.scan.corners[draggingIdx] = pt;
       updateOverlay();
+      updateMagnifier(e.clientX, e.clientY, pt);
     });
-    handle.addEventListener('pointerup', () => { draggingIdx = null; });
-    handle.addEventListener('pointercancel', () => { draggingIdx = null; });
+    handle.addEventListener('pointerup', () => { draggingIdx = null; hideMagnifier(); });
+    handle.addEventListener('pointercancel', () => { draggingIdx = null; hideMagnifier(); });
   });
 }
 
