@@ -926,6 +926,7 @@ function renderPlanningTab() {
 
   const moreBtn = `<div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap;">
     <button class="btn btn-sm" id="moreMonthBtn" type="button">+ Afficher le mois suivant</button>
+    ${state.monthsAhead > 0 ? `<button class="btn btn-sm" id="lessMonthBtn" type="button">− Masquer le mois le plus lointain</button>` : ''}
     ${isConfigured() ? `<button class="btn btn-sm" id="syncCalendarBtn" type="button">↻ Synchroniser l'agenda</button>` : ''}
     ${isConfigured() ? `<button class="btn btn-sm" id="notifyAllBtn" type="button">🔔 Notifier l'équipe</button>` : ''}
   </div>`;
@@ -1489,6 +1490,8 @@ function attachTabHandlers() {
   if (state.tab === 'planning') {
     const moreBtn = document.getElementById('moreMonthBtn');
     if (moreBtn) moreBtn.onclick = () => { state.monthsAhead += 1; renderTabContent(); };
+    const lessBtn = document.getElementById('lessMonthBtn');
+    if (lessBtn) lessBtn.onclick = () => { state.monthsAhead = Math.max(0, state.monthsAhead - 1); renderTabContent(); };
     const syncBtn = document.getElementById('syncCalendarBtn');
     if (syncBtn) syncBtn.onclick = async () => {
       syncBtn.disabled = true;
