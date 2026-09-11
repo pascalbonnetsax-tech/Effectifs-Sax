@@ -250,6 +250,11 @@
   .eff-row.is-past:hover{opacity:0.75;background:var(--surface-sunk);}
   .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);margin-bottom:3px;}
   .cal-today .cal-daynum{color:var(--ink-teal);font-weight:500;}
+  .cal-ab-badge{display:inline-block;margin-left:3px;font-family:'Inter',sans-serif;font-size:8.5px;font-weight:700;padding:0 3px;border-radius:3px;vertical-align:1px;}
+  .cal-ab-a{background:var(--ink-teal-soft);color:var(--ink-teal);}
+  .cal-ab-b{background:var(--amber-soft);color:var(--amber);}
+
+  .week-ab-bar{margin-bottom:16px;padding:10px 12px;border:0.5px solid var(--line);border-radius:10px;background:var(--surface);}
   .cal-chips{display:flex;flex-direction:column;gap:2px;min-width:0;}
   .cal-chip{
     font-size:10.5px;padding:2px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -477,6 +482,37 @@ const DAY_NAMES_FR = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','
 function dayNameFr(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return DAY_NAMES_FR[new Date(y, m - 1, d).getDay()];
+}
+
+/* ===== Semaine A/B — préférence strictement locale (navigateur), jamais
+   partagée avec l'équipe via le Sheet. Chacun l'active ou non pour lui-même. */
+const WEEK_AB_KEY = 'effectifs-weekAB';
+function loadWeekAbSettings() {
+  try {
+    const raw = localStorage.getItem(WEEK_AB_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { /* localStorage indisponible : on ignore, la fonction reste désactivée */ }
+  return { enabled: false, refMonday: null };
+}
+function saveWeekAbSettings() {
+  try { localStorage.setItem(WEEK_AB_KEY, JSON.stringify(weekAbSettings)); } catch (e) {}
+}
+let weekAbSettings = loadWeekAbSettings();
+
+function mondayOf(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const day = dt.getDay(); // 0=dimanche..6=samedi
+  dt.setDate(dt.getDate() + (day === 0 ? -6 : 1) - day);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function weekAbLabel(iso) {
+  if (!weekAbSettings.enabled || !weekAbSettings.refMonday) return null;
+  const [ry,rm,rd] = weekAbSettings.refMonday.split('-').map(Number);
+  const [my,mm,md] = mondayOf(iso).split('-').map(Number);
+  const diffDays = Math.round((Date.UTC(my,mm-1,md) - Date.UTC(ry,rm-1,rd)) / 86400000);
+  const diffWeeks = Math.round(diffDays / 7);
+  return (((diffWeeks % 2) + 2) % 2 === 0) ? 'A' : 'B';
 }
 function monthKey(iso) {
   const [y, m] = iso.split('-');
@@ -931,7 +967,7 @@ function renderPlanningTab() {
   for (let i = 1; i <= state.monthsAhead; i++) months.push(addMonths(monthKey(TODAY_ISO), i));
   const uniqueMonths = [...new Set(months)].sort().reverse();
 
-  const moreBtn = `<div style="margin-bottom:18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+  const moreBtn = `<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <div class="month-stepper">
       <button class="stepper-btn" id="lessMonthBtn" type="button" ${state.monthsAhead <= 0 ? 'disabled' : ''}>−</button>
       <span class="stepper-label">Mois suivant</span>
@@ -941,7 +977,22 @@ function renderPlanningTab() {
     ${isConfigured() ? `<button class="btn btn-sm" id="notifyAllBtn" type="button">🔔 Notifier l'équipe</button>` : ''}
   </div>`;
 
-  return intro + moreBtn + uniqueMonths.map(renderCalendarMonth).join('');
+  const weekAbBar = `
+    <div class="week-ab-bar">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;cursor:pointer;">
+        <input type="checkbox" id="weekAbToggle" ${weekAbSettings.enabled ? 'checked' : ''}>
+        Afficher l'alternance Semaine A/B <span class="hint">(réglage personnel, visible uniquement par vous)</span>
+      </label>
+      ${weekAbSettings.enabled ? `
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <label class="field-label" style="margin-bottom:0;">Une date de la semaine A :</label>
+          <input type="date" id="weekAbRefDate" value="${weekAbSettings.refMonday || mondayOf(TODAY_ISO)}">
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  return intro + moreBtn + weekAbBar + uniqueMonths.map(renderCalendarMonth).join('');
 }
 
 function renderCalendarMonth(key) {
@@ -964,9 +1015,10 @@ function renderCalendarMonth(key) {
       const full = ev.needed && filled >= ev.needed;
       return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}">${full ? '✓ ' : ''}${escapeHtml(ev.label)}</div>`;
     }).join('');
+    const abLabel = weekAbLabel(iso);
     cells += `
       <div class="cal-cell ${isToday ? 'cal-today' : ''} ${isPast ? 'is-past' : ''}" data-add-date="${iso}">
-        <div class="cal-daynum">${d}</div>
+        <div class="cal-daynum">${d}${abLabel ? `<span class="cal-ab-badge cal-ab-${abLabel.toLowerCase()}">${abLabel}</span>` : ''}</div>
         <div class="cal-chips">${chips}</div>
       </div>
     `;
@@ -1502,6 +1554,22 @@ function attachTabHandlers() {
     if (moreBtn) moreBtn.onclick = () => { state.monthsAhead += 1; renderTabContent(); };
     const lessBtn = document.getElementById('lessMonthBtn');
     if (lessBtn) lessBtn.onclick = () => { state.monthsAhead = Math.max(0, state.monthsAhead - 1); renderTabContent(); };
+    const weekAbToggle = document.getElementById('weekAbToggle');
+    if (weekAbToggle) weekAbToggle.onchange = (e) => {
+      weekAbSettings.enabled = e.target.checked;
+      if (weekAbSettings.enabled && !weekAbSettings.refMonday) {
+        weekAbSettings.refMonday = mondayOf(TODAY_ISO);
+      }
+      saveWeekAbSettings();
+      renderTabContent();
+    };
+    const weekAbRefDate = document.getElementById('weekAbRefDate');
+    if (weekAbRefDate) weekAbRefDate.onchange = (e) => {
+      if (!e.target.value) return;
+      weekAbSettings.refMonday = mondayOf(e.target.value);
+      saveWeekAbSettings();
+      renderTabContent();
+    };
     const syncBtn = document.getElementById('syncCalendarBtn');
     if (syncBtn) syncBtn.onclick = async () => {
       syncBtn.disabled = true;
