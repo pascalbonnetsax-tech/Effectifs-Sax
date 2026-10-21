@@ -121,6 +121,13 @@
   .badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase;}
   .badge-concert{background:var(--surface-sunk);color:var(--ink-soft);border:0.5px solid var(--line-strong);}
   .badge-ceremonie{background:transparent;color:var(--ink-soft);border:0.5px solid var(--ink-soft);}
+  .person-instruments{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;padding-left:110px;margin-top:-2px;}
+  .mini-opt.instrument-opt.sel{background:var(--concert);border-color:var(--concert);color:#fff;}
+  .serie-row{margin-top:12px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;}
+  .serie-field{min-width:150px;max-width:230px;flex:1;}
+  .serie-tag{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border:0.5px solid;border-radius:4px;}
+  .serie-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:1px;}
+  @media (max-width:600px){ .person-instruments{padding-left:0;} }
   .tick-done{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--ink-teal-soft);color:var(--ink-teal);font-size:10px;font-weight:700;}
 
   /* onglet Partitions */
@@ -477,6 +484,15 @@ async function fixJuly2026() {
 function fmtDate(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+}
+const INSTRUMENTS = { soprano: 'Soprano', alto: 'Alto', tenor: 'Ténor', baryton: 'Baryton' };
+function serieColor(name) {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return `hsl(${h}, 55%, 46%)`;
+}
+function allSeries() {
+  return [...new Set(state.events.map(e => e.serie).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 const DAY_NAMES_FR = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 function dayNameFr(iso) {
@@ -927,7 +943,8 @@ function renderEffRow(ev) {
     const h = ev.hours[p];
     const hourTxt = typeof h === 'number' ? `<span class="h">${h}h</span>` : '';
     const d = (ev.details && ev.details[p]) || {};
-    const tags = [d.transport || '', d.meal ? 'M' : ''].filter(Boolean).join(' · ');
+    const inst = (ev.category === 'concert' && d.instrument && INSTRUMENTS[d.instrument]) ? INSTRUMENTS[d.instrument] : '';
+    const tags = [inst, d.transport || '', d.meal ? 'M' : ''].filter(Boolean).join(' · ');
     const tagTxt = tags ? `<span class="h">${tags}</span>` : '';
     return `<span class="p-chip p-chip-${PERSON_SLUG[p]}">${p} ${hourTxt} ${tagTxt}</span>`;
   }).join('');
@@ -936,14 +953,22 @@ function renderEffRow(ev) {
     ? `<span class="hint">${filled}/${ev.needed}</span>`
     : '';
   const gradient = missingRespondersGradient(ev);
+  const sColor = ev.serie ? serieColor(ev.serie) : '';
+  const styleParts = [];
+  if (gradient) styleParts.push(`background:${gradient};`);
+  if (sColor) styleParts.push(`border-left:4px solid ${sColor};`);
+  const serieTag = ev.serie
+    ? `<span class="serie-tag" style="color:${sColor};border-color:${sColor};">${escapeHtml(ev.serie)}</span>`
+    : '';
 
   return `
-    <div class="eff-row ${ev.date < TODAY_ISO ? 'is-past' : ''}" data-edit="${ev.id}" ${gradient ? `style="background:${gradient};"` : ''}>
+    <div class="eff-row ${ev.date < TODAY_ISO ? 'is-past' : ''}" data-edit="${ev.id}" ${styleParts.length ? `style="${styleParts.join('')}"` : ''}>
       <div class="eff-date"><span class="eff-day">${dayNameFr(ev.date)}</span>${fmtDate(ev.date)}</div>
       <div class="eff-main">
         <div class="eff-label">
           ${escapeHtml(ev.label)}
           <span class="badge badge-${ev.category}">${CATEGORIES[ev.category]}</span>
+          ${serieTag}
           ${status}
           ${ev.tableauRempli ? `<span class="tick-done" title="Tableau rempli">✓</span>` : ''}
         </div>
@@ -1013,7 +1038,7 @@ function renderCalendarMonth(key) {
     const chips = dayEvents.map(ev => {
       const filled = Object.keys(ev.hours || {}).length;
       const full = ev.needed && filled >= ev.needed;
-      return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}">${full ? '✓ ' : ''}${escapeHtml(ev.label)}</div>`;
+      return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}">${full ? '✓ ' : ''}${ev.serie ? `<span class="serie-dot" style="background:${serieColor(ev.serie)};"></span>` : ''}${escapeHtml(ev.label)}</div>`;
     }).join('');
     const abLabel = weekAbLabel(iso);
     cells += `
@@ -1071,6 +1096,9 @@ function renderForm(ev) {
           <span class="mini-opt transport-opt ${d.transport==='DV'?'sel':''}" data-val="DV" title="Départ Vélizy">DV</span>
           <span class="mini-opt meal-opt ${d.meal?'sel':''}" data-val="M" title="Mangeant">M</span>
         </div>
+        <div class="person-instruments" ${data.category === 'concert' ? '' : 'style="display:none;"'}>
+          ${Object.entries(INSTRUMENTS).map(([k, l]) => `<span class="mini-opt instrument-opt ${d.instrument===k?'sel':''}" data-val="${k}">${l}</span>`).join('')}
+        </div>
       </div>
     `;
   }).join('');
@@ -1094,6 +1122,17 @@ function renderForm(ev) {
           <input type="date" id="f-deadline" value="${data.deadline || ''}">
         </div>
         ${!isNew && isConfigured() ? `<button class="btn btn-sm" id="notifyOneBtn" type="button">✉ Envoyer un rappel</button>` : ''}
+      </div>
+      <div class="serie-row">
+        <div class="serie-field">
+          <label class="field-label">Série</label>
+          <select id="f-serie-select">
+            <option value="">Aucune</option>
+            ${allSeries().map(s => `<option value="${escapeHtml(s)}" ${data.serie === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+            <option value="__new__">+ Nouvelle série</option>
+          </select>
+        </div>
+        <input type="text" id="f-serie-new" placeholder="Nom de la série" style="display:none;flex:1;min-width:140px;">
       </div>
       <p class="hint deadline-hint" style="margin:8px 2px 0;">Un rappel est envoyé automatiquement par mail 2 jours avant la date limite à ceux qui n'ont pas répondu.</p>
     </div>
@@ -1795,6 +1834,14 @@ function attachFormHandlers() {
         autoSave();
       };
     });
+    row.querySelectorAll('.instrument-opt').forEach(opt => {
+      opt.onclick = () => {
+        const already = opt.classList.contains('sel');
+        row.querySelectorAll('.instrument-opt').forEach(o => o.classList.remove('sel'));
+        if (!already) opt.classList.add('sel'); // reclic pour désélectionner
+        autoSave();
+      };
+    });
     const mealOpt = row.querySelector('.meal-opt');
     if (mealOpt) mealOpt.onclick = () => { mealOpt.classList.toggle('sel'); autoSave(); };
     const hoursInput = row.querySelector('.hours-input');
@@ -1808,9 +1855,25 @@ function attachFormHandlers() {
     opt.onclick = () => {
       catToggle.querySelectorAll('.dispo-opt').forEach(o => o.classList.remove('sel-oui'));
       opt.classList.add('sel-oui');
+      form.querySelectorAll('.person-instruments').forEach(el => {
+        el.style.display = opt.dataset.val === 'concert' ? '' : 'none';
+      });
       autoSave();
     };
   });
+
+  const serieSelect = document.getElementById('f-serie-select');
+  const serieNew = document.getElementById('f-serie-new');
+  serieSelect.onchange = () => {
+    if (serieSelect.value === '__new__') {
+      serieNew.style.display = '';
+      serieNew.focus();
+    } else {
+      serieNew.style.display = 'none';
+      autoSave();
+    }
+  };
+  serieNew.addEventListener('change', () => autoSave());
 
   const neededToggle = document.getElementById('f-needed');
   neededToggle.querySelectorAll('.dispo-opt').forEach(opt => {
@@ -1884,11 +1947,18 @@ function attachFormHandlers() {
       if (hVal !== '') hours[p] = parseFloat(hVal);
       const transportEl = row.querySelector('.transport-opt.sel');
       const meal = row.querySelector('.meal-opt.sel') ? true : false;
-      if (transportEl || meal) {
-        details[p] = { transport: transportEl ? transportEl.dataset.val : '', meal };
+      const instrumentEl = row.querySelector('.instrument-opt.sel');
+      if (transportEl || meal || instrumentEl) {
+        details[p] = {
+          transport: transportEl ? transportEl.dataset.val : '',
+          meal,
+          instrument: instrumentEl ? instrumentEl.dataset.val : '',
+        };
       }
     });
-    return { date, label, deadline, notes, tableauRempli, category, needed, dispo, hours, details };
+    const serieSel = document.getElementById('f-serie-select').value;
+    const serie = serieSel === '__new__' ? document.getElementById('f-serie-new').value.trim() : serieSel;
+    return { date, label, deadline, serie, notes, tableauRempli, category, needed, dispo, hours, details };
   }
 
   function closeForm() {
@@ -1909,8 +1979,17 @@ function attachFormHandlers() {
   const delBtn = document.getElementById('deleteBtn');
   if (delBtn) {
     delBtn.onclick = async () => {
+      const ev = state.events.find(e => e.id === state.editingId);
       state.events = state.events.filter(e => e.id !== state.editingId);
       await persist();
+      if (ev && ev.calendarEventId && isConfigured()) {
+        // sans ça, la prochaine synchro avec l'agenda recréerait cette mission
+        try {
+          await fetch(APPS_SCRIPT_URL + '?action=deleteCalendarEvent&calId=' + encodeURIComponent(ev.calendarEventId), { method: 'GET' });
+        } catch (e2) {
+          console.error('Erreur de suppression dans l\u2019agenda', e2);
+        }
+      }
       closeForm();
     };
   }
