@@ -486,10 +486,20 @@ function fmtDate(iso) {
   return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
 }
 const INSTRUMENTS = { soprano: 'Soprano', alto: 'Alto', tenor: 'Ténor', baryton: 'Baryton' };
+/* Couleur d'une série : teintes réparties de façon bien distincte (angle d'or)
+   selon l'ordre d'apparition des séries (date de leur première mission). */
+function serieOrder() {
+  const first = {};
+  state.events.forEach(e => {
+    if (!e.serie) return;
+    if (!(e.serie in first) || e.date < first[e.serie]) first[e.serie] = e.date;
+  });
+  return Object.keys(first).sort((a, b) => first[a].localeCompare(first[b]) || a.localeCompare(b));
+}
+const SERIE_PALETTE = ['#1c7ed6', '#f08c00', '#2b8a3e', '#d6336c']; // bleu, orange, vert, magenta
 function serieColor(name) {
-  let h = 0;
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return `hsl(${h}, 55%, 46%)`;
+  const idx = Math.max(0, serieOrder().indexOf(name));
+  return SERIE_PALETTE[idx % SERIE_PALETTE.length];
 }
 function allSeries() {
   return [...new Set(state.events.map(e => e.serie).filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -941,12 +951,11 @@ function renderEffRow(ev) {
   const assigned = PEOPLE.filter(p => ev.hours && ev.hours[p] !== undefined);
   const chips = assigned.map(p => {
     const h = ev.hours[p];
-    const hourTxt = typeof h === 'number' ? `<span class="h">${h}h</span>` : '';
     const d = (ev.details && ev.details[p]) || {};
     const inst = (ev.category === 'concert' && d.instrument && INSTRUMENTS[d.instrument]) ? INSTRUMENTS[d.instrument] : '';
     const tags = [inst, d.transport || '', d.meal ? 'M' : ''].filter(Boolean).join(' · ');
     const tagTxt = tags ? `<span class="h">${tags}</span>` : '';
-    return `<span class="p-chip p-chip-${PERSON_SLUG[p]}">${p} ${hourTxt} ${tagTxt}</span>`;
+    return `<span class="p-chip p-chip-${PERSON_SLUG[p]}">${p} ${tagTxt}</span>`;
   }).join('');
   const filled = assigned.length;
   const status = ev.needed
@@ -956,7 +965,7 @@ function renderEffRow(ev) {
   const sColor = ev.serie ? serieColor(ev.serie) : '';
   const styleParts = [];
   if (gradient) styleParts.push(`background:${gradient};`);
-  if (sColor) styleParts.push(`border-left:4px solid ${sColor};`);
+  if (sColor) styleParts.push(`box-shadow:inset 0 0 0 2px ${sColor};border-radius:8px;`);
   const serieTag = ev.serie
     ? `<span class="serie-tag" style="color:${sColor};border-color:${sColor};">${escapeHtml(ev.serie)}</span>`
     : '';
@@ -1038,7 +1047,7 @@ function renderCalendarMonth(key) {
     const chips = dayEvents.map(ev => {
       const filled = Object.keys(ev.hours || {}).length;
       const full = ev.needed && filled >= ev.needed;
-      return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}">${full ? '✓ ' : ''}${ev.serie ? `<span class="serie-dot" style="background:${serieColor(ev.serie)};"></span>` : ''}${escapeHtml(ev.label)}</div>`;
+      return `<div class="cal-chip cal-chip-${ev.category}" data-edit="${ev.id}" title="${escapeHtml(ev.label)}"${ev.serie ? ` style="box-shadow:inset 0 0 0 1.5px ${serieColor(ev.serie)};"` : ''}>${full ? '✓ ' : ''}${escapeHtml(ev.label)}</div>`;
     }).join('');
     const abLabel = weekAbLabel(iso);
     cells += `
