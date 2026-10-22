@@ -486,6 +486,12 @@ function fmtDate(iso) {
   return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
 }
 const INSTRUMENTS = { soprano: 'Soprano', alto: 'Alto', tenor: 'Ténor', baryton: 'Baryton' };
+const INSTR_ABBR = { soprano: 'Sop', alto: 'Alt', tenor: 'Ten', baryton: 'Bar' };
+/* Liste des instruments d'un musicien sur une mission (compatible avec l'ancien champ unique) */
+function getInstruments(d) {
+  const list = Array.isArray(d.instruments) ? d.instruments : (d.instrument ? [d.instrument] : []);
+  return Object.keys(INSTRUMENTS).filter(k => list.includes(k));
+}
 /* Couleur d'une série : teintes réparties de façon bien distincte (angle d'or)
    selon l'ordre d'apparition des séries (date de leur première mission). */
 function serieOrder() {
@@ -952,7 +958,7 @@ function renderEffRow(ev) {
   const chips = assigned.map(p => {
     const h = ev.hours[p];
     const d = (ev.details && ev.details[p]) || {};
-    const inst = (ev.category === 'concert' && d.instrument && INSTRUMENTS[d.instrument]) ? INSTRUMENTS[d.instrument] : '';
+    const inst = ev.category === 'concert' ? getInstruments(d).map(k => INSTR_ABBR[k]).join('/') : '';
     const tags = [inst, d.transport || '', d.meal ? 'M' : ''].filter(Boolean).join(' · ');
     const tagTxt = tags ? `<span class="h">${tags}</span>` : '';
     return `<span class="p-chip p-chip-${PERSON_SLUG[p]}">${p} ${tagTxt}</span>`;
@@ -1106,7 +1112,7 @@ function renderForm(ev) {
           <span class="mini-opt meal-opt ${d.meal?'sel':''}" data-val="M" title="Mangeant">M</span>
         </div>
         <div class="person-instruments" ${data.category === 'concert' ? '' : 'style="display:none;"'}>
-          ${Object.entries(INSTRUMENTS).map(([k, l]) => `<span class="mini-opt instrument-opt ${d.instrument===k?'sel':''}" data-val="${k}">${l}</span>`).join('')}
+          ${Object.entries(INSTRUMENTS).map(([k, l]) => `<span class="mini-opt instrument-opt ${getInstruments(d).includes(k)?'sel':''}" data-val="${k}">${l}</span>`).join('')}
         </div>
       </div>
     `;
@@ -1140,6 +1146,10 @@ function renderForm(ev) {
             ${allSeries().map(s => `<option value="${escapeHtml(s)}" ${data.serie === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
             <option value="__new__">+ Nouvelle série</option>
           </select>
+        </div>
+        <div id="serieTools" style="display:${data.serie ? 'flex' : 'none'};gap:4px;">
+          <button class="btn btn-sm" id="serieRenameBtn" type="button" title="Renommer la série">✎</button>
+          <button class="btn btn-sm btn-danger" id="serieDeleteBtn" type="button" title="Supprimer la série">✕</button>
         </div>
         <input type="text" id="f-serie-new" placeholder="Nom de la série" style="display:none;flex:1;min-width:140px;">
       </div>
@@ -1845,9 +1855,7 @@ function attachFormHandlers() {
     });
     row.querySelectorAll('.instrument-opt').forEach(opt => {
       opt.onclick = () => {
-        const already = opt.classList.contains('sel');
-        row.querySelectorAll('.instrument-opt').forEach(o => o.classList.remove('sel'));
-        if (!already) opt.classList.add('sel'); // reclic pour désélectionner
+        opt.classList.toggle('sel'); // plusieurs instruments possibles
         autoSave();
       };
     });
@@ -1873,7 +1881,20 @@ function attachFormHandlers() {
 
   const serieSelect = document.getElementById('f-serie-select');
   const serieNew = document.getElementById('f-serie-new');
+  const serieTools = document.getElementById('serieTools');
+  function updateSerieTools() {
+    const v = serieSelect.value;
+    serieTools.style.display = (v && v !== '__new__') ? 'flex' : 'none';
+  }
+  function rebuildSerieOptions(selected) {
+    serieSelect.innerHTML = '<option value="">Aucune</option>'
+      + allSeries().map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')
+      + '<option value="__new__">+ Nouvelle série</option>';
+    serieSelect.value = selected;
+    updateSerieTools();
+  }
   serieSelect.onchange = () => {
+    updateSerieTools();
     if (serieSelect.value === '__new__') {
       serieNew.style.display = '';
       serieNew.focus();
@@ -1883,6 +1904,25 @@ function attachFormHandlers() {
     }
   };
   serieNew.addEventListener('change', () => autoSave());
+
+  document.getElementById('serieRenameBtn').onclick = async () => {
+    const oldName = serieSelect.value;
+    const newName = prompt('Nouveau nom de la série :', oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const trimmed = newName.trim();
+    state.events.forEach(e => { if (e.serie === oldName) e.serie = trimmed; });
+    await persist();
+    rebuildSerieOptions(trimmed);
+    refreshBanner();
+  };
+  document.getElementById('serieDeleteBtn').onclick = async () => {
+    const name = serieSelect.value;
+    if (!confirm('Supprimer la série « ' + name + ' » ? Les missions sont conservées, seule leur appartenance à la série est retirée.')) return;
+    state.events.forEach(e => { if (e.serie === name) e.serie = ''; });
+    await persist();
+    rebuildSerieOptions('');
+    refreshBanner();
+  };
 
   const neededToggle = document.getElementById('f-needed');
   neededToggle.querySelectorAll('.dispo-opt').forEach(opt => {
@@ -1956,12 +1996,12 @@ function attachFormHandlers() {
       if (hVal !== '') hours[p] = parseFloat(hVal);
       const transportEl = row.querySelector('.transport-opt.sel');
       const meal = row.querySelector('.meal-opt.sel') ? true : false;
-      const instrumentEl = row.querySelector('.instrument-opt.sel');
-      if (transportEl || meal || instrumentEl) {
+      const instruments = [...row.querySelectorAll('.instrument-opt.sel')].map(el => el.dataset.val);
+      if (transportEl || meal || instruments.length) {
         details[p] = {
           transport: transportEl ? transportEl.dataset.val : '',
           meal,
-          instrument: instrumentEl ? instrumentEl.dataset.val : '',
+          instruments,
         };
       }
     });
