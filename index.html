@@ -1278,6 +1278,7 @@ function renderPartitionsTab() {
     return `
       <div style="margin-bottom:18px;">
         <button class="btn btn-sm btn-primary" id="startScanBtn" type="button">📷 Scanner une partition</button>
+        ${isConfigured() ? `<button class="btn btn-sm" id="syncDriveBtn" type="button">↻ Actualiser depuis le Drive</button>` : ''}
       </div>
       <div class="card"><div class="eff-row"><span class="hint">Aucune partition scannée pour l\u2019instant.</span></div></div>
     `;
@@ -1307,6 +1308,7 @@ function renderPartitionsTab() {
   return `
     <div style="margin-bottom:18px;">
       <button class="btn btn-sm btn-primary" id="startScanBtn" type="button">📷 Scanner une partition</button>
+        ${isConfigured() ? `<button class="btn btn-sm" id="syncDriveBtn" type="button">↻ Actualiser depuis le Drive</button>` : ''}
     </div>
     ${groups}${ungrouped}
   `;
@@ -1730,6 +1732,20 @@ function attachPartitionsHandlers() {
   if (!state.scan) {
     const startBtn = document.getElementById('startScanBtn');
     if (startBtn) startBtn.onclick = openScanner;
+    const syncDriveBtn = document.getElementById('syncDriveBtn');
+    if (syncDriveBtn) syncDriveBtn.onclick = async () => {
+      syncDriveBtn.disabled = true;
+      syncDriveBtn.textContent = 'Actualisation...';
+      try {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=syncPartitions', { method: 'GET' });
+        const data = await res.json();
+        if (Array.isArray(data)) state.partitions = data;
+      } catch (e) {
+        console.error('Erreur de synchro Drive', e);
+        alert('L\u2019actualisation a échoué — vérifiez votre connexion et réessayez.');
+      }
+      renderTabContent();
+    };
     document.querySelectorAll('[data-delete-partition]').forEach(btn => {
       btn.onclick = async () => {
         if (!await uiConfirm('Supprimer définitivement cette partition (fichier compris sur le Drive) ?')) return;
