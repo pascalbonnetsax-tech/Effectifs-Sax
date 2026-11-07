@@ -440,12 +440,16 @@ async function persist() {
 }
 
 /* ===== Partitions (stockées sur Google Drive, liste dans un onglet séparé du Sheet) ===== */
+function looksLikePartitions(data) {
+  return Array.isArray(data) && data.every(p => p && p.fileId);
+}
+
 async function loadPartitions() {
   if (!isConfigured()) { state.partitionsLoaded = true; return; }
   try {
     const res = await fetch(APPS_SCRIPT_URL + '?action=partitions', { method: 'GET' });
     const data = await res.json();
-    if (Array.isArray(data)) state.partitions = data;
+    if (looksLikePartitions(data)) state.partitions = data;
   } catch (e) {
     console.error('Erreur de chargement des partitions', e);
   }
@@ -1739,7 +1743,11 @@ function attachPartitionsHandlers() {
       try {
         const res = await fetch(APPS_SCRIPT_URL + '?action=syncPartitions', { method: 'GET' });
         const data = await res.json();
-        if (Array.isArray(data)) state.partitions = data;
+        if (looksLikePartitions(data)) {
+          state.partitions = data;
+        } else {
+          alert('Le script Apps Script ne semble pas à jour (réponse inattendue). Redéployez-le en choisissant « Nouvelle version », puis réessayez.');
+        }
       } catch (e) {
         console.error('Erreur de synchro Drive', e);
         alert('L\u2019actualisation a échoué — vérifiez votre connexion et réessayez.');
